@@ -9,6 +9,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 body{background:#070B14;font-family:'DM Sans',sans-serif;color:#EEF2FF;overflow-x:hidden}
@@ -173,7 +175,34 @@ function App(){
   const generate=()=>{const txt=genDoc(doc,form,pole.label);setPreview(txt);if(credits>0){setCredits(c=>c-1);go("preview");}else{go("locked");}};
   const pay=()=>{go("preview");};
   const copy=()=>{navigator.clipboard.writeText(preview);setCopied(true);setTimeout(()=>setCopied(false),2000);};
-  const download=()=>{const b=new Blob([preview],{type:"text/plain;charset=utf-8"});const u=URL.createObjectURL(b);const a=document.createElement("a");a.href=u;a.download=`${doc?.label||"document"}.txt`;a.click();};
+  
+  const download=(format)=>{
+    if(format==="pdf"){
+      const {jsPDF} = window.jspdf;
+      const pdf = new jsPDF({orientation:"portrait",unit:"mm",format:"a4"});
+      pdf.setFont("helvetica","normal");
+      pdf.setFontSize(10);
+      const lines = pdf.splitTextToSize(preview, 175);
+      let y = 20;
+      lines.forEach(line=>{
+        if(y > 270){pdf.addPage(); y = 20;}
+        pdf.text(line, 17, y);
+        y += 5.5;
+      });
+      pdf.save(`${doc?.label||"document"}.pdf`);
+    } else {
+      const {Document,Paragraph,TextRun,Packer,AlignmentType} = window.docx;
+      const paras = preview.split("\n").map(line=>
+        new Paragraph({children:[new TextRun({text:line,size:22,font:"Arial"})],spacing:{after:80}})
+      );
+      const wordDoc = new Document({sections:[{properties:{},children:paras}]});
+      Packer.toBlob(wordDoc).then(blob=>{
+        const u=URL.createObjectURL(blob);
+        const a=document.createElement("a");
+        a.href=u;a.download=`${doc?.label||"document"}.docx`;a.click();
+      });
+    }
+  };
   const reset=()=>{setPole(null);setDoc(null);setForm({});setPreview("");go("home");};
   const filled=Object.values(form).filter(Boolean).length;
   const total=doc?.fields?.length||1;
@@ -199,7 +228,33 @@ function App(){
     }catch(e){setAiError("Erreur de connexion.");}
     setAiLoading(false);
   };
-  const downloadAI=()=>{const b=new Blob([aiResult],{type:"text/plain;charset=utf-8"});const u=URL.createObjectURL(b);const a=document.createElement("a");a.href=u;a.download="document-ia.txt";a.click();};
+  const downloadAI=(format)=>{
+    if(format==="pdf"){
+      const {jsPDF} = window.jspdf;
+      const pdf = new jsPDF({orientation:"portrait",unit:"mm",format:"a4"});
+      pdf.setFont("helvetica","normal");
+      pdf.setFontSize(10);
+      const lines = pdf.splitTextToSize(aiResult, 175);
+      let y = 20;
+      lines.forEach(line=>{
+        if(y > 270){pdf.addPage(); y = 20;}
+        pdf.text(line, 17, y);
+        y += 5.5;
+      });
+      pdf.save("document-ia.pdf");
+    } else {
+      const {Document,Paragraph,TextRun,Packer} = window.docx;
+      const paras = aiResult.split("\n").map(line=>
+        new Paragraph({children:[new TextRun({text:line,size:22,font:"Arial"})],spacing:{after:80}})
+      );
+      const wordDoc = new Document({sections:[{properties:{},children:paras}]});
+      Packer.toBlob(wordDoc).then(blob=>{
+        const u=URL.createObjectURL(blob);
+        const a=document.createElement("a");
+        a.href=u;a.download="document-ia.docx";a.click();
+      });
+    }
+  };
   const copyAI=()=>{navigator.clipboard.writeText(aiResult);setAiCopied(true);setTimeout(()=>setAiCopied(false),2000);};
 
   const S={
@@ -268,7 +323,7 @@ function App(){
         </div>
         <div style={S.sec}>Tarifs</div>
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(210px,1fr))",gap:14,marginBottom:50}}>
-          {[{l:"Gratuit",p:"0€",s:"à l'inscription",items:["3 documents offerts","Tous les modèles","Téléchargement .txt"],f:false},
+          {[{l:"Gratuit",p:"0€",s:"à l'inscription",items:["3 documents offerts","Tous les modèles","Export Word & PDF"],f:false},
             {l:"À l'unité",p:"1€",s:"par document",items:["Sans abonnement","Accès immédiat","Toutes catégories"],f:false},
             {l:"Abonnement",p:"9€",s:"/mois · illimité",items:["Illimité","IA générative incluse","Export Word & PDF"],f:true,b:"Meilleure offre"}
           ].map(x=>(
@@ -629,12 +684,13 @@ function App(){
         <div style={{fontSize:17,fontWeight:700,fontFamily:"'Syne',sans-serif",marginBottom:3}}>{doc?.label}</div>
         <div style={{fontSize:13,color:T.muted,marginBottom:14}}>{pole?.label}</div>
         <div style={S.pre}>{preview}</div>
-        <div style={{display:"flex",gap:11,flexWrap:"wrap"}}>
-          <button style={S.btn(T.accent)} onClick={download}>⬇️ Télécharger (.txt)</button>
-          <button style={S.btn(T.blue)} onClick={copy}>{copied?"✅ Copié !":"📋 Copier"}</button>
+        <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:16}}>
+          <button style={S.btn(T.accent)} onClick={()=>download("docx")}>📄 Word (.docx)</button>
+          <button style={S.btn(T.blue)} onClick={()=>download("pdf")}>📕 PDF</button>
+          <button style={S.btnSec} onClick={copy}>{copied?"✅ Copié !":"📋 Copier le texte"}</button>
           <button style={S.btnSec} onClick={reset}>Nouveau document</button>
         </div>
-        <div style={{marginTop:16,fontSize:12,color:T.dim}}>💡 Export Word (.docx) et PDF disponible dans la version complète.</div>
+
       </div>
     </div>
   );
@@ -691,9 +747,12 @@ function App(){
             </div>
             <div style={S.pre}>{aiResult}</div>
             <div style={{display:"flex",gap:11,flexWrap:"wrap",marginBottom:14}}>
-              <button style={S.btn(T.accent)} onClick={downloadAI}>⬇️ Télécharger (.txt)</button>
+              <button style={S.btn(T.accent)} onClick={()=>downloadAI("docx")}>📄 Word (.docx)</button>
+              <button style={S.btn(T.blue)} onClick={()=>downloadAI("pdf")}>📕 PDF</button>
               <button style={S.btn(T.blue)} onClick={copyAI}>{aiCopied?"✅ Copié !":"📋 Copier"}</button>
               <button style={S.btnSec} onClick={()=>{setAiResult("");setAiPrompt("");}}>Nouveau</button>
+            </div>
+<button style={S.btnSec} onClick={()=>{setAiResult("");setAiPrompt("");}}>Nouveau</button>
             </div>
           </div>
         )}
