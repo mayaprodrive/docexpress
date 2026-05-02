@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Doc Express — Documents professionnels en quelques clics</title>
+  <meta name="description" content="Générez vos documents professionnels personnalisés en quelques clics." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #0A0E1A; font-family: 'Outfit', sans-serif; color: #F1F5F9; }
+    ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: #111827; } ::-webkit-scrollbar-thumb { background: #1E2D45; border-radius: 3px; }
+    input::placeholder { color: #475569; }
+    * { transition: border-color 0.2s, transform 0.2s, opacity 0.2s; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    const T = {
+      bg:"#0A0E1A", surface:"#111827", card:"#1A2235", border:"#1E2D45",
+      accent:"#F97316", blue:"#3B82F6", green:"#10B981",
+      text:"#F1F5F9", muted:"#94A3B8", dim:"#475569"
+    };
+
+    const poles = [
+      {
+        id:"auto-ecole", icon:"🚗", label:"Auto-École & Moniteurs", color:T.blue,
+        desc:"Documents pour moniteurs indépendants et gérants d'auto-école",
+        docs:[
+          {id:"contrat-eleve", label:"Contrat de formation élève", fields:["nom_eleve","prenom_eleve","date_naissance","adresse","formule","montant","nom_ecole","moniteur"]},
+          {id:"attestation-heures", label:"Attestation d'heures de conduite", fields:["nom_eleve","prenom_eleve","nb_heures","date_debut","date_fin","nom_ecole","moniteur"]},
+          {id:"reglement-interieur", label:"Règlement intérieur auto-école", fields:["nom_ecole","adresse_ecole","telephone","moniteur","date"]},
+          {id:"fiche-suivi", label:"Fiche de suivi moniteur", fields:["moniteur","semaine","nom_ecole","vehicule"]},
+          {id:"recu-paiement", label:"Reçu de paiement élève", fields:["nom_eleve","prenom_eleve","montant","objet","date","nom_ecole"]},
+        ]
+      },
+      {
+        id:"entrepreneur", icon:"📄", label:"Entrepreneurs & Artisans", color:T.accent,
+        desc:"Documents administratifs et contractuels pour tous secteurs",
+        docs:[
+          {id:"contrat-prestation", label:"Contrat de prestation de services", fields:["prestataire","client","objet_mission","montant_ht","duree","date_debut","adresse_prestataire","adresse_client"]},
+          {id:"convention-partenariat", label:"Convention de partenariat", fields:["structure1","structure2","objet_partenariat","duree","referent1","referent2","date"]},
+          {id:"devis", label:"Devis commercial", fields:["prestataire","client","adresse_client","prestations","montant_ht","tva","validite","date"]},
+          {id:"mise-en-demeure", label:"Lettre de mise en demeure", fields:["expediteur","destinataire","objet_litige","montant","delai","date"]},
+          {id:"pv-ag", label:"Procès-verbal d'assemblée générale", fields:["nom_asso","date_ag","lieu","president_seance","ordre_du_jour","decisions","secretaire"]},
+        ]
+      },
+      {
+        id:"risque-routier", icon:"🦺", label:"Risque Routier Professionnel", color:T.green,
+        desc:"Outils pour RH, DRH et responsables sécurité en entreprise",
+        docs:[
+          {id:"politique-securite", label:"Politique sécurité routière entreprise", fields:["nom_entreprise","directeur","nb_salaries","nb_vehicules","date","responsable_securite"]},
+          {id:"fiche-conducteur", label:"Fiche individuelle conducteur", fields:["nom_salarie","prenom_salarie","poste","permis_categorie","date_permis","vehicule_attribue","km_annuels"]},
+          {id:"attestation-formation", label:"Attestation de formation sécurité routière", fields:["nom_salarie","prenom_salarie","date_formation","duree_formation","organisme","formateur","contenu"]},
+          {id:"analyse-risque", label:"Fiche d'analyse des risques routiers", fields:["nom_entreprise","service","trajet_type","frequence","niveau_risque","mesures","responsable"]},
+          {id:"charte-conducteur", label:"Charte du conducteur responsable", fields:["nom_entreprise","directeur","date","responsable_securite"]},
+        ]
+      }
+    ];
+
+    const FL = {
+      nom_eleve:"Nom de l'élève", prenom_eleve:"Prénom de l'élève", date_naissance:"Date de naissance",
+      adresse:"Adresse complète", formule:"Formule choisie (ex: Pack 20h)", montant:"Montant total (€)",
+      nom_ecole:"Nom de l'auto-école", moniteur:"Nom du moniteur", nb_heures:"Nombre d'heures effectuées",
+      date_debut:"Date de début", date_fin:"Date de fin", adresse_ecole:"Adresse de l'auto-école",
+      telephone:"Téléphone", date:"Date", semaine:"Semaine du (ex: 05/05/2025)", vehicule:"Véhicule utilisé",
+      objet:"Objet du paiement", prestataire:"Nom du prestataire", client:"Nom du client",
+      objet_mission:"Objet de la mission", montant_ht:"Montant HT (€)", duree:"Durée / Période",
+      adresse_prestataire:"Adresse du prestataire", adresse_client:"Adresse du client",
+      structure1:"Structure 1", structure2:"Structure 2", objet_partenariat:"Objet du partenariat",
+      referent1:"Référent structure 1", referent2:"Référent structure 2", prestations:"Détail des prestations",
+      tva:"TVA (%)", validite:"Validité du devis (jours)", expediteur:"Expéditeur",
+      destinataire:"Destinataire", objet_litige:"Objet du litige", delai:"Délai accordé (jours)",
+      nom_asso:"Nom de l'association", date_ag:"Date de l'AG", lieu:"Lieu",
+      president_seance:"Président de séance", ordre_du_jour:"Ordre du jour", decisions:"Décisions prises",
+      secretaire:"Secrétaire de séance", nom_entreprise:"Nom de l'entreprise", directeur:"Directeur / Responsable",
+      nb_salaries:"Nombre de salariés", nb_vehicules:"Nombre de véhicules", responsable_securite:"Responsable sécurité",
+      nom_salarie:"Nom du salarié", prenom_salarie:"Prénom du salarié", poste:"Poste occupé",
+      permis_categorie:"Catégorie de permis", date_permis:"Date d'obtention du permis",
+      vehicule_attribue:"Véhicule attribué", km_annuels:"Kilométrage annuel estimé",
+      date_formation:"Date de formation", duree_formation:"Durée de la formation",
+      organisme:"Organisme de formation", formateur:"Nom du formateur", contenu:"Contenu de la formation",
+      service:"Service / Département", trajet_type:"Type de trajet", frequence:"Fréquence des déplacements",
+      niveau_risque:"Niveau de risque évalué", mesures:"Mesures de prévention prévues",
+      responsable:"Responsable de l'analyse",
+    };
+
+    function genDoc(doc, fields, poleLabel) {
+      const today = new Date().toLocaleDateString("fr-FR");
+      const g = k => fields[k] || `[${FL[k]||k}]`;
+      const tpls = {
+        "contrat-eleve": `CONTRAT DE FORMATION À LA CONDUITE\n${"─".repeat(50)}\n\nAuto-École : ${g("nom_ecole")}\nMoniteur référent : ${g("moniteur")}\nDate : ${g("date")||today}\n\nENTRE LES SOUSSIGNÉS :\n\nL'auto-école ${g("nom_ecole")}, représentée par ${g("moniteur")},\nET\nL'élève : ${g("prenom_eleve")} ${g("nom_eleve")}, né(e) le ${g("date_naissance")},\ndemeurant au ${g("adresse")}.\n\nIL A ÉTÉ CONVENU CE QUI SUIT :\n\nArticle 1 – Objet\nL'auto-école s'engage à dispenser une formation à la conduite\nselon la formule choisie : ${g("formule")}.\n\nArticle 2 – Conditions financières\nLe montant total est fixé à ${g("montant")} €.\n\nArticle 3 – Engagement de l'élève\nL'élève s'engage à respecter le règlement intérieur\net à honorer les créneaux réservés.\n\n${"─".repeat(50)}\nFait à _____________, le ${today}\n\nSignature de l'élève :          Signature du moniteur :`,
+
+        "attestation-heures": `ATTESTATION D'HEURES DE CONDUITE\n${"─".repeat(50)}\n\nAuto-École : ${g("nom_ecole")}\nDate : ${today}\n\nJe soussigné(e) ${g("moniteur")}, moniteur(trice) de conduite,\natteste que l'élève ${g("prenom_eleve")} ${g("nom_eleve")}\na effectué ${g("nb_heures")} heures de conduite\ndu ${g("date_debut")} au ${g("date_fin")}.\n\nCette attestation est délivrée pour faire valoir ce que de droit.\n\n${"─".repeat(50)}\nFait à _____________, le ${today}\n\nSignature et cachet :`,
+
+        "contrat-prestation": `CONTRAT DE PRESTATION DE SERVICES\n${"─".repeat(50)}\n\nEntre :\n${g("prestataire")} (le Prestataire)\n${g("adresse_prestataire")}\nET\n${g("client")} (le Client)\n${g("adresse_client")}\n\nArticle 1 – Objet\n${g("objet_mission")}\n\nArticle 2 – Durée\nDébut : ${g("date_debut")} — Durée : ${g("duree")}\n\nArticle 3 – Rémunération\nMontant : ${g("montant_ht")} € HT\n\nArticle 4 – Confidentialité\nChaque partie s'engage à respecter la confidentialité\ndes informations échangées dans le cadre de cette mission.\n\n${"─".repeat(50)}\nFait en deux exemplaires, le ${today}\n\nSignature Prestataire :         Signature Client :`,
+
+        "convention-partenariat": `CONVENTION DE PARTENARIAT\n${"─".repeat(50)}\n\nEntre :\n${g("structure1")}, représentée par ${g("referent1")}\nET\n${g("structure2")}, représentée par ${g("referent2")}\n\nArticle 1 – Objet\n${g("objet_partenariat")}\n\nArticle 2 – Durée\n${g("duree")} à compter de la signature.\n\nArticle 3 – Engagements réciproques\nChaque partie contribue activement aux objectifs communs.\n\n${"─".repeat(50)}\nFait le ${g("date")||today}\n\nPour ${g("structure1")} :        Pour ${g("structure2")} :`,
+
+        "devis": `DEVIS\n${"─".repeat(50)}\n\nPrestataire : ${g("prestataire")}\nClient : ${g("client")} — ${g("adresse_client")}\nDate : ${g("date")||today} — Validité : ${g("validite")} jours\n\nDÉTAIL DES PRESTATIONS\n${"─".repeat(30)}\n${g("prestations")}\n${"─".repeat(30)}\n\nMontant HT : ${g("montant_ht")} €\nTVA (${g("tva")}%) : ${(parseFloat(fields.montant_ht||0)*parseFloat(fields.tva||0)/100).toFixed(2)} €\nMontant TTC : ${(parseFloat(fields.montant_ht||0)*(1+parseFloat(fields.tva||0)/100)).toFixed(2)} €\n\nBon pour accord — Date et signature :`,
+
+        "politique-securite": `POLITIQUE DE SÉCURITÉ ROUTIÈRE\n${"─".repeat(50)}\n\nEntreprise : ${g("nom_entreprise")}\nDirection : ${g("directeur")}\nResponsable sécurité : ${g("responsable_securite")}\nDate : ${g("date")||today}\nEffectif : ${g("nb_salaries")} salariés | Parc : ${g("nb_vehicules")} véhicules\n\nPRÉAMBULE\nL'entreprise s'engage dans une démarche active de\nprévention des risques routiers professionnels.\n\nENGAGEMENTS DE LA DIRECTION\n• Intégrer le risque routier au Document Unique\n• Former les conducteurs aux bonnes pratiques\n• Assurer l'entretien régulier du parc véhicules\n• Sensibiliser l'ensemble du personnel\n\nRÈGLES POUR TOUS LES CONDUCTEURS\n• Respect du Code de la Route en toute circonstance\n• Interdiction d'utiliser le téléphone au volant\n• Respect des temps de conduite et de repos\n• Signalement immédiat de tout incident\n\n${"─".repeat(50)}\nFait le ${today}\n\nSignature de la Direction :`,
+
+        "fiche-conducteur": `FICHE INDIVIDUELLE CONDUCTEUR\n${"─".repeat(50)}\n\nIDENTITÉ\nNom : ${g("nom_salarie")} — Prénom : ${g("prenom_salarie")}\nPoste : ${g("poste")}\n\nPERMIS DE CONDUIRE\nCatégorie : ${g("permis_categorie")}\nDate d'obtention : ${g("date_permis")}\n\nVÉHICULE\nAttribué : ${g("vehicule_attribue")}\nKilométrage annuel estimé : ${g("km_annuels")} km\n\nSUIVI\n☐ Formation sécurité routière effectuée\n☐ Contrôle du permis réalisé\n☐ Entretien du véhicule à jour\n\n${"─".repeat(50)}\nDate : ${today}\n\nSignature du salarié :          Signature responsable :`,
+
+        "charte-conducteur": `CHARTE DU CONDUCTEUR RESPONSABLE\n${"─".repeat(50)}\n${g("nom_entreprise")}\n\nEn tant que conducteur professionnel, je m'engage à :\n\n✓ Respecter scrupuleusement le Code de la Route\n✓ Adapter ma vitesse aux conditions de circulation\n✓ Ne jamais utiliser mon téléphone en conduisant\n✓ Respecter les temps de repos réglementaires\n✓ Signaler tout défaut mécanique immédiatement\n✓ Refuser de conduire en état de fatigue\n✓ Être un ambassadeur de la sécurité routière\n\nJe reconnais avoir pris connaissance de la politique\nde sécurité routière de l'entreprise.\n\n${"─".repeat(50)}\nFait le ${g("date")||today}\nDirection : ${g("directeur")}\n\nSignature du conducteur :       Date :`,
+      };
+      return tpls[doc.id] || `${doc.label.toUpperCase()}\n${"─".repeat(50)}\nPôle : ${poleLabel}\nDate : ${today}\n\n${Object.entries(fields).filter(([,v])=>v).map(([k,v])=>`${FL[k]||k} : ${v}`).join("\n")}\n\n${"─".repeat(50)}\nDocument généré via Doc Express — Maya Pro Drive`;
+    }
+
+    function App() {
+      const [pole, setPole] = useState(null);
+      const [doc, setDoc] = useState(null);
+      const [form, setForm] = useState({});
+      const [step, setStep] = useState("home");
+      const [preview, setPreview] = useState("");
+      const [paid, setPaid] = useState(false);
+      const [copied, setCopied] = useState(false);
+      const [plan, setPlan] = useState("unit");
+      const [fade, setFade] = useState(false);
+
+      const go = s => { setFade(true); setTimeout(() => { setStep(s); setFade(false); }, 200); };
+      const selPole = p => { setPole(p); setDoc(null); setForm({}); go("pole"); };
+      const selDoc = d => { setDoc(d); setForm({}); go("form"); };
+      const setField = (k,v) => setForm(p=>({...p,[k]:v}));
+      const generate = () => { setPreview(genDoc(doc, form, pole.label)); go("locked"); };
+      const pay = () => { setPaid(true); go("preview"); };
+      const copy = () => { navigator.clipboard.writeText(preview); setCopied(true); setTimeout(()=>setCopied(false),2000); };
+      const download = () => {
+        const b = new Blob([preview],{type:"text/plain;charset=utf-8"});
+        const u = URL.createObjectURL(b);
+        const a = document.createElement("a"); a.href=u; a.download=`${doc?.label||"document"}.txt`; a.click();
+      };
+      const reset = () => { setPole(null); setDoc(null); setForm({}); setPreview(""); setPaid(false); go("home"); };
+
+      const filled = Object.values(form).filter(Boolean).length;
+      const total = doc?.fields?.length||1;
+      const prog = Math.round(filled/total*100);
+
+      const css = {
+        wrap: { opacity: fade?0:1, transition:"opacity 0.2s", minHeight:"calc(100vh - 65px)", maxWidth:900, margin:"0 auto", padding:"32px 20px 60px" },
+        card: { background:T.card, border:`1px solid ${T.border}`, borderRadius:20, padding:32, marginBottom:24 },
+        btn: c => ({ background:`linear-gradient(135deg,${c},${c}CC)`, color:"#fff", border:"none", borderRadius:12, padding:"13px 26px", fontSize:15, fontWeight:700, cursor:"pointer", fontFamily:"Outfit,sans-serif", display:"inline-flex", alignItems:"center", gap:8 }),
+        btnSec: { background:T.surface, color:T.muted, border:`1px solid ${T.border}`, borderRadius:12, padding:"13px 22px", fontSize:14, fontWeight:600, cursor:"pointer", fontFamily:"Outfit,sans-serif" },
+        back: { background:"none", border:"none", color:T.muted, cursor:"pointer", fontSize:14, fontWeight:500, padding:"8px 0", marginBottom:24, display:"inline-flex", alignItems:"center", gap:8, fontFamily:"Outfit,sans-serif" },
+        sec: { fontSize:12, fontWeight:700, color:T.dim, letterSpacing:"3px", textTransform:"uppercase", marginBottom:18 },
+        input: { background:T.surface, border:`1px solid ${T.border}`, borderRadius:10, padding:"10px 14px", color:T.text, fontSize:14, fontFamily:"Outfit,sans-serif", outline:"none", width:"100%", boxSizing:"border-box" },
+        pre: { background:T.surface, border:`1px solid ${T.border}`, borderRadius:16, padding:24, fontFamily:"monospace", fontSize:13, color:T.muted, whiteSpace:"pre-wrap", lineHeight:1.7, marginBottom:24, maxHeight:400, overflowY:"auto" },
+      };
+
+      return (
+        <div style={{background:T.bg, minHeight:"100vh"}}>
+          {/* HEADER */}
+          <div style={{background:`linear-gradient(135deg,${T.surface},#0D1520)`, borderBottom:`1px solid ${T.border}`, padding:"14px 24px", display:"flex", alignItems:"center", justifyContent:"space-between", position:"sticky", top:0, zIndex:100}}>
+            <div style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer"}} onClick={reset}>
+              <div style={{width:36,height:36,background:`linear-gradient(135deg,${T.accent},#FB923C)`,borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,fontWeight:900,color:"#fff"}}>D</div>
+              <div>
+                <div style={{fontSize:20,fontWeight:800,letterSpacing:"-0.5px"}}>Doc Express</div>
+                <div style={{fontSize:10,color:T.muted,letterSpacing:"2px",textTransform:"uppercase"}}>by Maya Pro Drive</div>
+              </div>
+            </div>
+            <div style={{background:`${T.accent}20`,border:`1px solid ${T.accent}40`,color:T.accent,padding:"4px 14px",borderRadius:20,fontSize:12,fontWeight:600}}>Bêta</div>
+          </div>
+
+          <div style={css.wrap}>
+
+            {/* HOME */}
+            {step==="home" && <>
+              <div style={{textAlign:"center",marginBottom:48,paddingTop:16}}>
+                <h1 style={{fontSize:"clamp(28px,5vw,42px)",fontWeight:900,letterSpacing:"-1.5px",lineHeight:1.1,marginBottom:16,background:`linear-gradient(135deg,${T.text},${T.muted})`,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>
+                  Vos documents pro,<br/>
+                  <span style={{background:`linear-gradient(135deg,${T.accent},#FB923C)`,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>en quelques clics.</span>
+                </h1>
+                <p style={{fontSize:16,color:T.muted,maxWidth:500,margin:"0 auto 32px",lineHeight:1.6}}>Générez des documents professionnels personnalisés — contrats, conventions, attestations — prêts à signer ou télécharger.</p>
+                <div style={{display:"flex",justifyContent:"center",gap:32,flexWrap:"wrap"}}>
+                  {[["15+","Documents"],["3","Pôles métier"],["2€","À partir de"]].map(([n,l])=>(
+                    <div key={l} style={{textAlign:"center"}}>
+                      <div style={{fontSize:28,fontWeight:900,color:T.accent,letterSpacing:"-1px"}}>{n}</div>
+                      <div style={{fontSize:11,color:T.dim,letterSpacing:"1px",textTransform:"uppercase"}}>{l}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div style={css.sec}>Choisissez votre domaine</div>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(250px,1fr))",gap:16,marginBottom:40}}>
+                {poles.map(p=>(
+                  <div key={p.id}
+                    style={{background:T.card,border:`1.5px solid ${T.border}`,borderRadius:16,padding:24,cursor:"pointer",position:"relative",overflow:"hidden"}}
+                    onClick={()=>selPole(p)}
+                    onMouseEnter={e=>{e.currentTarget.style.borderColor=p.color;e.currentTarget.style.transform="translateY(-4px)";}}
+                    onMouseLeave={e=>{e.currentTarget.style.borderColor=T.border;e.currentTarget.style.transform="translateY(0)";}}
+                  >
+                    <div style={{position:"absolute",top:-30,right:-30,width:80,height:80,borderRadius:"50%",background:`${p.color}20`,filter:"blur(20px)"}}/>
+                    <div style={{fontSize:32,marginBottom:12}}>{p.icon}</div>
+                    <div style={{fontSize:16,fontWeight:700,marginBottom:6}}>{p.label}</div>
+                    <div style={{fontSize:13,color:T.muted,lineHeight:1.5,marginBottom:16}}>{p.desc}</div>
+                    <div style={{color:p.color,fontSize:13,fontWeight:600}}>{p.docs.length} documents →</div>
+                  </div>
+                ))}
+              </div>
+
+              <div style={css.card}>
+                <div style={css.sec}>Tarifs</div>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:16}}>
+                  {[{l:"À l'unité",p:"2€",s:"par document",f:false},{l:"Pack 10 docs",p:"15€",s:"1,50€/doc",f:true,b:"Populaire"},{l:"Abonnement",p:"9€",s:"/mois · illimité",f:false}].map(x=>(
+                    <div key={x.l} style={{background:x.f?`${T.accent}15`:T.surface,border:`1.5px solid ${x.f?T.accent:T.border}`,borderRadius:16,padding:22,textAlign:"center",position:"relative"}}>
+                      {x.b&&<div style={{position:"absolute",top:-10,left:"50%",transform:"translateX(-50%)",background:T.accent,color:"#fff",fontSize:11,fontWeight:700,padding:"3px 10px",borderRadius:20,whiteSpace:"nowrap"}}>{x.b}</div>}
+                      <div style={{fontSize:13,fontWeight:700,color:T.muted,marginBottom:8}}>{x.l}</div>
+                      <div style={{fontSize:30,fontWeight:900,color:x.f?T.accent:T.text,letterSpacing:"-1px"}}>{x.p}</div>
+                      <div style={{fontSize:12,color:T.dim,marginTop:4}}>{x.s}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>}
+
+            {/* POLE */}
+            {step==="pole" && pole && <>
+              <button style={css.back} onClick={()=>go("home")}>← Retour</button>
+              <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:28}}>
+                <div style={{fontSize:40}}>{pole.icon}</div>
+                <div>
+                  <div style={{fontSize:22,fontWeight:800}}>{pole.label}</div>
+                  <div style={{fontSize:14,color:T.muted}}>{pole.desc}</div>
+                </div>
+              </div>
+              <div style={css.sec}>Sélectionnez un document</div>
+              <div style={{display:"flex",flexDirection:"column",gap:10}}>
+                {pole.docs.map(d=>(
+                  <div key={d.id}
+                    style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:12,padding:"16px 20px",cursor:"pointer",display:"flex",alignItems:"center",gap:14}}
+                    onClick={()=>selDoc(d)}
+                    onMouseEnter={e=>{e.currentTarget.style.borderColor=pole.color;e.currentTarget.style.transform="translateX(4px)";}}
+                    onMouseLeave={e=>{e.currentTarget.style.borderColor=T.border;e.currentTarget.style.transform="translateX(0)";}}
+                  >
+                    <div style={{width:10,height:10,borderRadius:"50%",background:pole.color,flexShrink:0}}/>
+                    <span style={{flex:1,fontSize:15,fontWeight:500}}>{d.label}</span>
+                    <span style={{color:T.dim,fontSize:18}}>›</span>
+                  </div>
+                ))}
+              </div>
+            </>}
+
+            {/* FORM */}
+            {step==="form" && doc && pole && <>
+              <button style={css.back} onClick={()=>go("pole")}>← {pole.label}</button>
+              <div style={css.card}>
+                <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:4}}>
+                  <div style={{width:12,height:12,borderRadius:"50%",background:pole.color}}/>
+                  <div style={{fontSize:20,fontWeight:700}}>{doc.label}</div>
+                </div>
+                <div style={{fontSize:13,color:T.muted,marginBottom:22}}>Renseignez les informations pour personnaliser votre document.</div>
+                <div style={{height:4,background:T.border,borderRadius:4,marginBottom:24,overflow:"hidden"}}>
+                  <div style={{height:"100%",width:`${prog}%`,background:pole.color,borderRadius:4,transition:"width 0.3s"}}/>
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(210px,1fr))",gap:16}}>
+                  {doc.fields.map(k=>(
+                    <div key={k} style={{display:"flex",flexDirection:"column",gap:6}}>
+                      <label style={{fontSize:12,fontWeight:600,color:T.muted}}>{FL[k]||k}</label>
+                      <input style={css.input} value={form[k]||""} onChange={e=>setField(k,e.target.value)} placeholder={FL[k]||k}
+                        onFocus={e=>{e.target.style.borderColor=pole.color;}}
+                        onBlur={e=>{e.target.style.borderColor=T.border;}}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
+                <button style={css.btn(pole.color)} onClick={generate}>✨ Générer le document</button>
+                <button style={css.btnSec} onClick={()=>go("pole")}>Annuler</button>
+              </div>
+            </>}
+
+            {/* LOCKED */}
+            {step==="locked" && <>
+              <div style={{...css.card,textAlign:"center"}}>
+                <div style={{fontSize:48,marginBottom:16}}>🔒</div>
+                <div style={{fontSize:22,fontWeight:800,marginBottom:8}}>Votre document est prêt !</div>
+                <div style={{fontSize:14,color:T.muted,marginBottom:28,lineHeight:1.6}}>Choisissez votre formule pour accéder au document complet.</div>
+                <div style={{display:"flex",justifyContent:"center",gap:14,marginBottom:28,flexWrap:"wrap"}}>
+                  {[{id:"unit",l:"Document à l'unité",p:"2€"},{id:"sub",l:"Abonnement mensuel",p:"9€/mois"}].map(x=>(
+                    <div key={x.id}
+                      style={{background:plan===x.id?`${T.accent}20`:T.surface,border:`2px solid ${plan===x.id?T.accent:T.border}`,borderRadius:16,padding:"16px 22px",cursor:"pointer",textAlign:"center",minWidth:130}}
+                      onClick={()=>setPlan(x.id)}
+                    >
+                      <div style={{fontSize:24,fontWeight:900,color:plan===x.id?T.accent:T.text}}>{x.p}</div>
+                      <div style={{fontSize:12,color:T.muted,marginTop:2}}>{x.l}</div>
+                    </div>
+                  ))}
+                </div>
+                <button style={css.btn(T.accent)} onClick={pay}>💳 Payer et accéder au document</button>
+                <div style={{fontSize:12,color:T.dim,marginTop:14}}>Paiement sécurisé via Stripe · Accès immédiat</div>
+              </div>
+              <div style={{position:"relative"}}>
+                <div style={{...css.pre,filter:"blur(5px)",userSelect:"none",pointerEvents:"none"}}>{preview}</div>
+                <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(10,14,26,0.5)",borderRadius:16}}>
+                  <div style={{fontSize:40}}>🔒</div>
+                </div>
+              </div>
+            </>}
+
+            {/* PREVIEW */}
+            {step==="preview" && paid && <>
+              <button style={css.back} onClick={reset}>← Nouveau document</button>
+              <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:24,background:`${T.green}15`,border:`1px solid ${T.green}40`,borderRadius:12,padding:"12px 20px"}}>
+                <span style={{fontSize:20}}>✅</span>
+                <div>
+                  <div style={{fontWeight:700,color:T.green,fontSize:14}}>Paiement confirmé</div>
+                  <div style={{fontSize:12,color:T.muted}}>Votre document est disponible ci-dessous</div>
+                </div>
+              </div>
+              <div style={{fontSize:18,fontWeight:700,marginBottom:4}}>{doc?.label}</div>
+              <div style={{fontSize:13,color:T.muted,marginBottom:16}}>{pole?.label}</div>
+              <div style={css.pre}>{preview}</div>
+              <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
+                <button style={css.btn(T.accent)} onClick={download}>⬇️ Télécharger (.txt)</button>
+                <button style={css.btn(T.blue)} onClick={copy}>{copied?"✅ Copié !":"📋 Copier"}</button>
+                <button style={css.btnSec} onClick={reset}>Nouveau document</button>
+              </div>
+              <div style={{marginTop:20,fontSize:12,color:T.dim}}>💡 La génération Word (.docx) et PDF sera disponible dans la version complète.</div>
+            </>}
+
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+  </script>
+</body>
+</html>
