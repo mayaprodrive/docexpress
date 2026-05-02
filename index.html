@@ -176,30 +176,403 @@ function App(){
   const pay=()=>{go("preview");};
   const copy=()=>{navigator.clipboard.writeText(preview);setCopied(true);setTimeout(()=>setCopied(false),2000);};
   
-  const download=(format)=>{
-    if(format==="pdf"){
-      const {jsPDF} = window.jspdf;
-      const pdf = new jsPDF({orientation:"portrait",unit:"mm",format:"a4"});
+  // ─── GÉNÉRATEUR DE DOCUMENT MISE EN PAGE PROFESSIONNELLE ───
+  const buildWordDoc = (content, docLabel, poleLabel) => {
+    const {
+      Document, Paragraph, TextRun, Packer,
+      AlignmentType, BorderStyle, ShadingType,
+      Table, TableRow, TableCell, WidthType,
+      HeadingLevel, PageOrientation, convertInchesToTwip,
+      UnderlineType
+    } = window.docx;
+
+    const BRAND_COLOR = "1E3A5F";   // bleu marine
+    const ACCENT_COLOR = "F97316";  // orange Doc Express
+    const LIGHT_BG = "F0F4F8";      // gris très clair
+
+    const lines = content.split("\n");
+    const children = [];
+
+    // ── EN-TÊTE avec logo placeholder + titre app ──
+    children.push(
+      new Table({
+        width:{size:100,type:WidthType.PERCENTAGE},
+        borders:{top:{style:BorderStyle.NONE},bottom:{style:BorderStyle.THICK,color:ACCENT_COLOR,size:8},left:{style:BorderStyle.NONE},right:{style:BorderStyle.NONE},insideH:{style:BorderStyle.NONE},insideV:{style:BorderStyle.NONE}},
+        rows:[new TableRow({children:[
+          new TableCell({
+            width:{size:20,type:WidthType.PERCENTAGE},
+            shading:{type:ShadingType.SOLID,color:BRAND_COLOR},
+            margins:{top:120,bottom:120,left:200,right:200},
+            children:[
+              new Paragraph({alignment:AlignmentType.CENTER,children:[
+                new TextRun({text:"DOC",bold:true,color:"FFFFFF",size:28,font:"Arial"}),
+              ]}),
+              new Paragraph({alignment:AlignmentType.CENTER,children:[
+                new TextRun({text:"EXPRESS",bold:true,color:ACCENT_COLOR,size:18,font:"Arial"}),
+              ]}),
+              new Paragraph({alignment:AlignmentType.CENTER,children:[
+                new TextRun({text:"🖼 Votre logo ici",color:"AAAAAA",size:14,font:"Arial",italics:true}),
+              ]}),
+            ]
+          }),
+          new TableCell({
+            width:{size:80,type:WidthType.PERCENTAGE},
+            margins:{top:120,bottom:120,left:300,right:200},
+            children:[
+              new Paragraph({children:[new TextRun({text:docLabel,bold:true,color:BRAND_COLOR,size:28,font:"Arial"})]}),
+              new Paragraph({children:[new TextRun({text:poleLabel,color:"666666",size:18,font:"Arial",italics:true})]}),
+              new Paragraph({children:[new TextRun({text:"Généré via Doc Express — Maya Pro Drive",color:"999999",size:14,font:"Arial"})]}),
+            ]
+          })
+        ]})]
+      })
+    );
+
+    // Espace après en-tête
+    children.push(new Paragraph({spacing:{after:200}}));
+
+    // ── TRAITEMENT LIGNE PAR LIGNE ──
+    lines.forEach((line, i) => {
+      const trimmed = line.trim();
+
+      // Ligne vide → espace
+      if (!trimmed) {
+        children.push(new Paragraph({spacing:{after:80}}));
+        return;
+      }
+
+      // Séparateur ─── → filet de séparation
+      if (/^─{3,}/.test(trimmed)) {
+        children.push(new Paragraph({
+          border:{bottom:{style:BorderStyle.SINGLE,color:"CCCCCC",size:4}},
+          spacing:{after:120}
+        }));
+        return;
+      }
+
+      // TITRE PRINCIPAL (tout en majuscules, ≥ 10 chars, ligne 0-3)
+      if (i < 8 && trimmed === trimmed.toUpperCase() && trimmed.length > 8 && !/^(•|–|-)/.test(trimmed) && !/^\d/.test(trimmed)) {
+        children.push(new Paragraph({
+          alignment:AlignmentType.CENTER,
+          shading:{type:ShadingType.SOLID,color:BRAND_COLOR},
+          spacing:{before:200,after:200},
+          children:[new TextRun({text:trimmed,bold:true,color:"FFFFFF",size:28,font:"Arial"})]
+        }));
+        return;
+      }
+
+      // Sous-titre en majuscules (ARTICLE X, PRÉAMBULE, etc.)
+      if (trimmed === trimmed.toUpperCase() && trimmed.length > 4 && /^(ARTICLE|ART\.|PRÉAMBULE|PRÉAMB|ENTRE|FAIT|ANNEX|BILAN|ELECT|DÉCIS|DIVERS|ENTRE|OBJET|DURÉE|PARTIE|SIGNAT)/.test(trimmed)) {
+        children.push(new Paragraph({
+          shading:{type:ShadingType.SOLID,color:LIGHT_BG},
+          spacing:{before:200,after:100},
+          border:{left:{style:BorderStyle.THICK,color:ACCENT_COLOR,size:12}},
+          indent:{left:160},
+          children:[new TextRun({text:trimmed,bold:true,color:BRAND_COLOR,size:22,font:"Arial"})]
+        }));
+        return;
+      }
+
+      // Article numéroté style "Article 1 –" ou "Art.1 –"
+      if (/^(Article\s+\d+|Art\.\d+)\s*[–-]/.test(trimmed)) {
+        const parts = trimmed.match(/^(Article\s+\d+|Art\.\d+)\s*[–-]\s*(.*)/);
+        children.push(new Paragraph({
+          spacing:{before:200,after:80},
+          border:{left:{style:BorderStyle.THICK,color:ACCENT_COLOR,size:8}},
+          indent:{left:160},
+          children:[
+            new TextRun({text:(parts?parts[1]:"")+" – ",bold:true,color:BRAND_COLOR,size:22,font:"Arial"}),
+            new TextRun({text:parts?parts[2]:trimmed,bold:true,color:"333333",size:22,font:"Arial"}),
+          ]
+        }));
+        return;
+      }
+
+      // Ligne de champ "Nom : valeur" → mise en évidence
+      if (/^[A-ZÀ-Ú][a-zA-ZÀ-ú\s\/()àéèêëîïôùûü]{1,30}\s*:/.test(trimmed) && !trimmed.startsWith("•") && trimmed.length < 80) {
+        const colonIdx = trimmed.indexOf(":");
+        const label = trimmed.substring(0, colonIdx);
+        const value = trimmed.substring(colonIdx+1).trim();
+        children.push(new Paragraph({
+          spacing:{after:60},
+          children:[
+            new TextRun({text:label+" : ",bold:true,color:BRAND_COLOR,size:20,font:"Arial"}),
+            new TextRun({text:value||"_______________________",color:"222222",size:20,font:"Arial"}),
+          ]
+        }));
+        return;
+      }
+
+      // Puce • ou – ou *
+      if (/^[•\-–*]\s/.test(trimmed)) {
+        children.push(new Paragraph({
+          indent:{left:400,hanging:200},
+          spacing:{after:60},
+          children:[
+            new TextRun({text:"▸  "+trimmed.substring(2),color:"333333",size:20,font:"Arial"}),
+          ]
+        }));
+        return;
+      }
+
+      // Ligne de signature
+      if (/^(Signature|Fait à|Pour |La\/Le|Le\/La|Nom\s*:)/.test(trimmed)) {
+        children.push(new Paragraph({
+          spacing:{before:120,after:80},
+          children:[new TextRun({text:trimmed,bold:true,color:BRAND_COLOR,size:20,font:"Arial",italics:true})]
+        }));
+        return;
+      }
+
+      // ✓ ✗ ☐ check boxes
+      if (/^[✓✗☐☑]/.test(trimmed)) {
+        children.push(new Paragraph({
+          indent:{left:300},
+          spacing:{after:60},
+          children:[new TextRun({text:trimmed,color:"333333",size:20,font:"Arial"})]
+        }));
+        return;
+      }
+
+      // Texte normal
+      children.push(new Paragraph({
+        spacing:{after:80},
+        children:[new TextRun({text:trimmed,color:"222222",size:20,font:"Arial"})]
+      }));
+    });
+
+    // ── PIED DE PAGE ──
+    children.push(new Paragraph({spacing:{before:400}}));
+    children.push(new Paragraph({
+      alignment:AlignmentType.CENTER,
+      border:{top:{style:BorderStyle.SINGLE,color:"CCCCCC",size:4}},
+      spacing:{before:200},
+      children:[
+        new TextRun({text:"Document généré par ",color:"999999",size:16,font:"Arial"}),
+        new TextRun({text:"Doc Express",bold:true,color:ACCENT_COLOR,size:16,font:"Arial"}),
+        new TextRun({text:" — Maya Pro Drive — www.mayaprodrive.com",color:"999999",size:16,font:"Arial"}),
+      ]
+    }));
+
+    return new Document({
+      styles:{
+        default:{document:{run:{font:"Arial",size:20,color:"222222"}}},
+      },
+      sections:[{
+        properties:{
+          page:{
+            margin:{top:800,bottom:800,left:900,right:900},
+          }
+        },
+        children
+      }]
+    });
+  };
+
+  const buildPDF = (content, docLabel, poleLabel) => {
+    const {jsPDF} = window.jspdf;
+    const pdf = new jsPDF({orientation:"portrait",unit:"mm",format:"a4"});
+    const W = 210, H = 297;
+    const ml = 18, mr = 18, mt = 15;
+    const contentW = W - ml - mr;
+
+    // ── EN-TÊTE ──
+    // Bande bleue
+    pdf.setFillColor(30, 58, 95);
+    pdf.rect(0, 0, 60, 28, "F");
+    // Texte logo
+    pdf.setTextColor(255,255,255);
+    pdf.setFontSize(14);
+    pdf.setFont("helvetica","bold");
+    pdf.text("DOC", 30, 11, {align:"center"});
+    pdf.setTextColor(249, 115, 22);
+    pdf.setFontSize(9);
+    pdf.text("EXPRESS", 30, 17, {align:"center"});
+    pdf.setTextColor(180,180,180);
+    pdf.setFontSize(7);
+    pdf.setFont("helvetica","italic");
+    pdf.text("Votre logo ici", 30, 23, {align:"center"});
+
+    // Titre document
+    pdf.setTextColor(30,58,95);
+    pdf.setFontSize(15);
+    pdf.setFont("helvetica","bold");
+    pdf.text(docLabel, 65, 12);
+    pdf.setTextColor(100,100,100);
+    pdf.setFontSize(9);
+    pdf.setFont("helvetica","italic");
+    pdf.text(poleLabel, 65, 18);
+    pdf.setTextColor(150,150,150);
+    pdf.setFontSize(7);
+    pdf.setFont("helvetica","normal");
+    pdf.text("Généré via Doc Express — Maya Pro Drive", 65, 24);
+
+    // Filet orange sous en-tête
+    pdf.setDrawColor(249,115,22);
+    pdf.setLineWidth(0.8);
+    pdf.line(0, 29, W, 29);
+
+    let y = 37;
+
+    const checkPage = (needed=6) => {
+      if(y + needed > H - 18){
+        pdf.addPage();
+        pdf.setDrawColor(249,115,22);
+        pdf.setLineWidth(0.5);
+        pdf.line(0,8,W,8);
+        y = 16;
+      }
+    };
+
+    const lines = content.split("\n");
+    lines.forEach((line, i) => {
+      const t = line.trim();
+      if(!t){y+=3;return;}
+
+      // Séparateur
+      if(/^─{3,}/.test(t)){
+        checkPage(4);
+        pdf.setDrawColor(200,200,200);
+        pdf.setLineWidth(0.3);
+        pdf.line(ml,y,W-mr,y);
+        y+=4;
+        return;
+      }
+
+      // TITRE PRINCIPAL
+      if(i<8 && t===t.toUpperCase() && t.length>8 && !/^[•–\-\d]/.test(t)){
+        checkPage(14);
+        pdf.setFillColor(30,58,95);
+        pdf.rect(ml,y-5,contentW,10,"F");
+        pdf.setTextColor(255,255,255);
+        pdf.setFontSize(12);
+        pdf.setFont("helvetica","bold");
+        const wrapped = pdf.splitTextToSize(t, contentW-6);
+        pdf.text(wrapped, W/2, y+1, {align:"center"});
+        y+=12;
+        return;
+      }
+
+      // Sous-titre article/section
+      if(t===t.toUpperCase() && t.length>4 && /^(ARTICLE|ART\.|PRÉAMBULE|ENTRE|FAIT|ANNEX|BILAN|ELECT|DÉCIS|DIVERS|OBJET|DURÉE)/.test(t)){
+        checkPage(10);
+        pdf.setFillColor(240,244,248);
+        pdf.rect(ml,y-4,contentW,8,"F");
+        pdf.setFillColor(249,115,22);
+        pdf.rect(ml,y-4,1.5,8,"F");
+        pdf.setTextColor(30,58,95);
+        pdf.setFontSize(9);
+        pdf.setFont("helvetica","bold");
+        pdf.text(t, ml+4, y+1);
+        y+=10;
+        return;
+      }
+
+      // Article numéroté
+      if(/^(Article\s+\d+|Art\.\d+)\s*[–-]/.test(t)){
+        checkPage(10);
+        const parts = t.match(/^(Article\s+\d+|Art\.\d+)\s*[–-]\s*(.*)/);
+        pdf.setFillColor(249,115,22);
+        pdf.rect(ml,y-4,1.5,8,"F");
+        pdf.setTextColor(30,58,95);
+        pdf.setFontSize(9);
+        pdf.setFont("helvetica","bold");
+        if(parts) {
+          pdf.text(parts[1]+" – ", ml+4, y+1);
+          pdf.setTextColor(50,50,50);
+          pdf.setFont("helvetica","bold");
+          const labelW = pdf.getTextWidth(parts[1]+" – ");
+          pdf.text(parts[2], ml+4+labelW, y+1);
+        } else {
+          pdf.text(t, ml+4, y+1);
+        }
+        y+=10;
+        return;
+      }
+
+      // Champ "Label : Valeur"
+      if(/^[A-ZÀ-Úa-zà-ú][a-zA-ZÀ-ú\s\/()]{1,30}\s*:/.test(t) && !t.startsWith("•") && t.length<80){
+        checkPage(7);
+        const ci = t.indexOf(":");
+        const lbl = t.substring(0,ci);
+        const val = t.substring(ci+1).trim()||"_______________________";
+        pdf.setTextColor(30,58,95);
+        pdf.setFontSize(9);
+        pdf.setFont("helvetica","bold");
+        pdf.text(lbl+" : ", ml, y);
+        const lblW = pdf.getTextWidth(lbl+" : ");
+        pdf.setTextColor(30,30,30);
+        pdf.setFont("helvetica","normal");
+        const valLines = pdf.splitTextToSize(val, contentW-lblW);
+        pdf.text(valLines[0]||"", ml+lblW, y);
+        y+=6;
+        return;
+      }
+
+      // Puce
+      if(/^[•\-–*✓✗☐]\s/.test(t)){
+        checkPage(6);
+        pdf.setFillColor(249,115,22);
+        pdf.circle(ml+1.5, y-1, 1, "F");
+        pdf.setTextColor(50,50,50);
+        pdf.setFontSize(9);
+        pdf.setFont("helvetica","normal");
+        const bullLines = pdf.splitTextToSize(t.substring(2), contentW-8);
+        pdf.text(bullLines, ml+5, y);
+        y+=bullLines.length*5.5;
+        return;
+      }
+
+      // Ligne signature/fait à
+      if(/^(Signature|Fait à|Pour |La\/Le|Le\/La)/.test(t)){
+        checkPage(7);
+        pdf.setTextColor(30,58,95);
+        pdf.setFontSize(9);
+        pdf.setFont("helvetica","bolditalic");
+        pdf.text(t, ml, y);
+        y+=7;
+        return;
+      }
+
+      // Texte normal
+      checkPage(6);
+      pdf.setTextColor(40,40,40);
+      pdf.setFontSize(9);
       pdf.setFont("helvetica","normal");
-      pdf.setFontSize(10);
-      const lines = pdf.splitTextToSize(preview, 175);
-      let y = 20;
-      lines.forEach(line=>{
-        if(y > 270){pdf.addPage(); y = 20;}
-        pdf.text(line, 17, y);
-        y += 5.5;
-      });
-      pdf.save(`${doc?.label||"document"}.pdf`);
+      const wrapped = pdf.splitTextToSize(t, contentW);
+      pdf.text(wrapped, ml, y);
+      y+=wrapped.length*5.5;
+    });
+
+    // ── PIED DE PAGE ──
+    const totalPages = pdf.internal.getNumberOfPages();
+    for(let p=1;p<=totalPages;p++){
+      pdf.setPage(p);
+      pdf.setDrawColor(200,200,200);
+      pdf.setLineWidth(0.3);
+      pdf.line(ml,H-12,W-mr,H-12);
+      pdf.setTextColor(150,150,150);
+      pdf.setFontSize(7);
+      pdf.setFont("helvetica","normal");
+      pdf.text("Doc Express — Maya Pro Drive — www.mayaprodrive.com",ml,H-7);
+      pdf.text(`Page ${p}/${totalPages}`,W-mr,H-7,{align:"right"});
+    }
+
+    return pdf;
+  };
+
+  const download=(format)=>{
+    const label = doc?.label||"document";
+    const pLabel = pole?.label||"";
+    if(format==="pdf"){
+      const pdf = buildPDF(preview, label, pLabel);
+      pdf.save(`${label}.pdf`);
     } else {
-      const {Document,Paragraph,TextRun,Packer,AlignmentType} = window.docx;
-      const paras = preview.split("\n").map(line=>
-        new Paragraph({children:[new TextRun({text:line,size:22,font:"Arial"})],spacing:{after:80}})
-      );
-      const wordDoc = new Document({sections:[{properties:{},children:paras}]});
-      Packer.toBlob(wordDoc).then(blob=>{
+      const wordDoc = buildWordDoc(preview, label, pLabel);
+      window.docx.Packer.toBlob(wordDoc).then(blob=>{
         const u=URL.createObjectURL(blob);
         const a=document.createElement("a");
-        a.href=u;a.download=`${doc?.label||"document"}.docx`;a.click();
+        a.href=u;a.download=`${label}.docx`;a.click();
       });
     }
   };
@@ -229,26 +602,14 @@ function App(){
     setAiLoading(false);
   };
   const downloadAI=(format)=>{
+    const label = "Document IA";
+    const pLabel = "Génération IA — Doc Express";
     if(format==="pdf"){
-      const {jsPDF} = window.jspdf;
-      const pdf = new jsPDF({orientation:"portrait",unit:"mm",format:"a4"});
-      pdf.setFont("helvetica","normal");
-      pdf.setFontSize(10);
-      const lines = pdf.splitTextToSize(aiResult, 175);
-      let y = 20;
-      lines.forEach(line=>{
-        if(y > 270){pdf.addPage(); y = 20;}
-        pdf.text(line, 17, y);
-        y += 5.5;
-      });
+      const pdf = buildPDF(aiResult, label, pLabel);
       pdf.save("document-ia.pdf");
     } else {
-      const {Document,Paragraph,TextRun,Packer} = window.docx;
-      const paras = aiResult.split("\n").map(line=>
-        new Paragraph({children:[new TextRun({text:line,size:22,font:"Arial"})],spacing:{after:80}})
-      );
-      const wordDoc = new Document({sections:[{properties:{},children:paras}]});
-      Packer.toBlob(wordDoc).then(blob=>{
+      const wordDoc = buildWordDoc(aiResult, label, pLabel);
+      window.docx.Packer.toBlob(wordDoc).then(blob=>{
         const u=URL.createObjectURL(blob);
         const a=document.createElement("a");
         a.href=u;a.download="document-ia.docx";a.click();
