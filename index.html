@@ -10,6 +10,38 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+  import { getFirestore, doc, setDoc, getDoc, updateDoc, increment } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyC456sT67Rb8lgBeYbg280qTD8adLIAQoM",
+    authDomain: "docexpress-ff1a2.firebaseapp.com",
+    projectId: "docexpress-ff1a2",
+    storageBucket: "docexpress-ff1a2.firebasestorage.app",
+    messagingSenderId: "102099109539",
+    appId: "1:102099109539:web:e8c875597d392a06fca116"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  // Exposer globalement pour React
+  window.fbAuth = auth;
+  window.fbDb = db;
+  window.fbFunctions = {
+    createUserWithEmailAndPassword,
+    signInWithEmailAndPassword,
+    signOut,
+    onAuthStateChanged,
+    updateProfile,
+    doc, setDoc, getDoc, updateDoc, increment
+  };
+  window.firebaseReady = true;
+  window.dispatchEvent(new Event("firebaseReady"));
+</script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 body{background:#070B14;font-family:'DM Sans',sans-serif;color:#EEF2FF;overflow-x:hidden}
@@ -118,7 +150,8 @@ function genDoc(doc,fields,poleLabel){
   return tpl[doc.id]||`${doc.label.toUpperCase()}\n${"─".repeat(52)}\nPôle : ${poleLabel}\nDate : ${today}\n\n${Object.entries(fields).filter(([,v])=>v).map(([k,v])=>`${k.replace(/_/g,' ')} : ${v}`).join("\n")}\n\n${"─".repeat(52)}\nDocument généré via Doc Express — Maya Pro Drive`;
 }
 
-function Header({user,credits,onAI,onReset,S,T}){
+function Header({user,credits,onAI,onReset,onLogout,onAccount,S,T}){
+  const [menuOpen,setMenuOpen] = React.useState(false);
   return(
     <div style={{background:`linear-gradient(135deg,${T.bg2},#0A1020)`,borderBottom:`1px solid ${T.border}`,padding:"13px 24px",display:"flex",alignItems:"center",justifyContent:"space-between",position:"sticky",top:0,zIndex:100}}>
       <div style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer"}} onClick={onReset}>
@@ -129,8 +162,30 @@ function Header({user,credits,onAI,onReset,S,T}){
         </div>
       </div>
       <div style={{display:"flex",alignItems:"center",gap:10}}>
-        {user&&<div style={{background:`${T.accent}20`,border:`1px solid ${T.accent}40`,color:T.accent,padding:"5px 14px",borderRadius:20,fontSize:13,fontWeight:700}}>🎟 {credits} crédit{credits!==1?"s":""}</div>}
-        <button style={{background:`linear-gradient(135deg,${T.purple},${T.purple}DD)`,color:"#fff",border:"none",borderRadius:10,padding:"8px 16px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}} onClick={onAI}>✨ IA</button>
+        {user&&<div style={{background:`${T.accent}20`,border:`1px solid ${T.accent}40`,color:T.accent,padding:"5px 12px",borderRadius:20,fontSize:12,fontWeight:700}}>🎟 {credits} crédit{credits!==1?"s":""}</div>}
+        <button style={{background:`linear-gradient(135deg,${T.purple},${T.purple}DD)`,color:"#fff",border:"none",borderRadius:10,padding:"8px 14px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}} onClick={onAI}>✨ IA</button>
+        {user&&(
+          <div style={{position:"relative"}}>
+            <button
+              style={{background:T.card,border:`1px solid ${T.border}`,color:T.text,borderRadius:10,padding:"7px 14px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",display:"flex",alignItems:"center",gap:7}}
+              onClick={()=>setMenuOpen(m=>!m)}>
+              👤 {user.name.split(" ")[0]} ▾
+            </button>
+            {menuOpen&&(
+              <div style={{position:"absolute",right:0,top:42,background:T.card,border:`1px solid ${T.border}`,borderRadius:12,padding:8,minWidth:180,zIndex:200,boxShadow:"0 8px 24px rgba(0,0,0,0.4)"}}>
+                <div style={{padding:"8px 12px",borderBottom:`1px solid ${T.border}`,marginBottom:6}}>
+                  <div style={{fontSize:13,fontWeight:700,color:T.text}}>{user.name}</div>
+                  <div style={{fontSize:11,color:T.muted}}>{user.email}</div>
+                  <div style={{fontSize:11,color:T.accent,marginTop:3}}>🎟 {credits} crédit{credits!==1?"s":""}</div>
+                </div>
+                <button style={{width:"100%",textAlign:"left",background:"none",border:"none",color:T.text,padding:"8px 12px",fontSize:13,cursor:"pointer",borderRadius:8,fontFamily:"'DM Sans',sans-serif"}}
+                  onClick={()=>{setMenuOpen(false);onAccount();}}>⚙️ Mon compte</button>
+                <button style={{width:"100%",textAlign:"left",background:"none",border:"none",color:"#FF6B6B",padding:"8px 12px",fontSize:13,cursor:"pointer",borderRadius:8,fontFamily:"'DM Sans',sans-serif"}}
+                  onClick={()=>{setMenuOpen(false);onLogout();}}>🚪 Se déconnecter</button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -138,13 +193,53 @@ function Header({user,credits,onAI,onReset,S,T}){
 
 function App(){
   const [screen,setScreen]=useState("landing");
+  const [authReady,setAuthReady]=useState(false);
+  const [authError,setAuthError]=useState("");
+  const [authLoading,setAuthLoading]=useState(false);
+  const [loginEmail,setLoginEmail]=useState("");
+  const [loginPwd,setLoginPwd]=useState("");
+  const [showLogin,setShowLogin]=useState(false);
+
+  // Initialisation Firebase + écoute auth
+  useEffect(()=>{
+    const init = () => {
+      if(!window.fbAuth) return;
+      const {onAuthStateChanged} = window.fbFunctions;
+      onAuthStateChanged(window.fbAuth, async (fbUser) => {
+        if(fbUser){
+          // Utilisateur connecté — charger ses données Firestore
+          const {doc, getDoc} = window.fbFunctions;
+          const ref = doc(window.fbDb, "users", fbUser.uid);
+          const snap = await getDoc(ref);
+          if(snap.exists()){
+            const data = snap.data();
+            setUser({name: data.name||fbUser.displayName||"Utilisateur", email: fbUser.email, uid: fbUser.uid});
+            setCredits(data.credits||0);
+          } else {
+            // Nouveau compte — créer le profil
+            const {setDoc} = window.fbFunctions;
+            await setDoc(ref, {name: fbUser.displayName||"", email: fbUser.email, credits: 3, createdAt: new Date().toISOString()});
+            setUser({name: fbUser.displayName||"", email: fbUser.email, uid: fbUser.uid});
+            setCredits(3);
+          }
+          setScreen("home");
+        } else {
+          setUser(null);
+          setCredits(0);
+        }
+        setAuthReady(true);
+      });
+    };
+    if(window.firebaseReady) init();
+    else window.addEventListener("firebaseReady", init);
+    return ()=>window.removeEventListener("firebaseReady", init);
+  },[]);
 
   // Détection retour Stripe (?paid=true dans l'URL)
   useEffect(()=>{
     const params = new URLSearchParams(window.location.search);
     if(params.get("paid")==="true"){
       setPaid(true);
-      // Nettoyer l'URL sans recharger la page
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   },[]);
@@ -167,11 +262,67 @@ function App(){
   const [aiCopied,setAiCopied]=useState(false);
 
   const go=s=>{setFade(true);setTimeout(()=>{setScreen(s);setFade(false);},180);};
-  const register=()=>{if(!regName||!regEmail)return;setUser({name:regName,email:regEmail});setCredits(3);go("home");};
+  const register=async()=>{
+    if(!regName||!regEmail||!regPwd){setAuthError("Merci de remplir tous les champs.");return;}
+    if(regPwd.length<6){setAuthError("Le mot de passe doit contenir au moins 6 caractères.");return;}
+    setAuthLoading(true);setAuthError("");
+    try{
+      const {createUserWithEmailAndPassword,updateProfile,doc,setDoc} = window.fbFunctions;
+      const cred = await createUserWithEmailAndPassword(window.fbAuth, regEmail, regPwd);
+      await updateProfile(cred.user, {displayName: regName});
+      await setDoc(doc(window.fbDb,"users",cred.user.uid),{
+        name:regName, email:regEmail, credits:3, createdAt:new Date().toISOString()
+      });
+      setUser({name:regName, email:regEmail, uid:cred.user.uid});
+      setCredits(3);
+      go("home");
+    }catch(e){
+      if(e.code==="auth/email-already-in-use") setAuthError("Cet email est déjà utilisé. Connectez-vous.");
+      else if(e.code==="auth/invalid-email") setAuthError("Adresse email invalide.");
+      else setAuthError("Erreur : "+e.message);
+    }
+    setAuthLoading(false);
+  };
+
+  const login=async()=>{
+    if(!loginEmail||!loginPwd){setAuthError("Merci de remplir email et mot de passe.");return;}
+    setAuthLoading(true);setAuthError("");
+    try{
+      const {signInWithEmailAndPassword} = window.fbFunctions;
+      await signInWithEmailAndPassword(window.fbAuth, loginEmail, loginPwd);
+      // onAuthStateChanged gère la suite automatiquement
+    }catch(e){
+      if(e.code==="auth/invalid-credential"||e.code==="auth/wrong-password") setAuthError("Email ou mot de passe incorrect.");
+      else if(e.code==="auth/user-not-found") setAuthError("Aucun compte avec cet email.");
+      else setAuthError("Erreur de connexion : "+e.message);
+    }
+    setAuthLoading(false);
+  };
+
+  const logout=async()=>{
+    const {signOut} = window.fbFunctions;
+    await signOut(window.fbAuth);
+    setUser(null);setCredits(0);setPole(null);setDoc(null);setPreview("");
+    go("landing");
+  };
   const selPole=p=>{setPole(p);setDoc(null);setForm({});go("pole");};
   const selDoc=d=>{setDoc(d);setForm({});go("form");};
   const setField=(k,v)=>setForm(p=>({...p,[k]:v}));
-  const generate=()=>{const txt=genDoc(doc,form,pole.label);setPreview(txt);if(credits>0){setCredits(c=>c-1);go("preview");}else{go("locked");}};
+  const generate=async()=>{
+    const txt=genDoc(doc,form,pole.label);
+    setPreview(txt);
+    if(credits>0){
+      setCredits(cr=>cr-1);
+      // Décrémenter en BDD si connecté
+      if(user?.uid){
+        const {doc:fbDoc,updateDoc,increment} = window.fbFunctions;
+        updateDoc(fbDoc(window.fbDb,"users",user.uid),{credits:increment(-1)}).catch(()=>{});
+      }
+      go("preview");
+    }else{
+      go("locked");
+    }
+  };
   const pay=()=>{go("preview");};
   const copy=()=>{navigator.clipboard.writeText(preview);setCopied(true);setTimeout(()=>setCopied(false),2000);};
   
@@ -540,7 +691,10 @@ function App(){
               <div style={{fontSize:10,color:T.muted,letterSpacing:"2px",textTransform:"uppercase"}}>by Maya Pro Drive</div>
             </div>
           </div>
-          <button style={S.btn(T.accent)} onClick={()=>go("register")}>Commencer gratuitement →</button>
+          <div style={{display:"flex",gap:10,alignItems:"center"}}>
+          <button style={{...S.btnO(T.muted),padding:"7px 16px",fontSize:13}} onClick={()=>{setAuthError("");setShowLogin(true);go("register");}}>Se connecter</button>
+          <button style={S.btn(T.accent)} onClick={()=>{setShowLogin(false);go("register");}}>Commencer gratuitement →</button>
+        </div>
         </nav>
         <div style={{textAlign:"center",padding:"70px 0 50px"}}>
           <div style={{background:`${T.green}20`,border:`1px solid ${T.green}40`,color:T.green,padding:"5px 16px",borderRadius:20,fontSize:13,fontWeight:600,display:"inline-block",marginBottom:22}}>✨ 3 documents offerts à l'inscription</div>
@@ -598,6 +752,44 @@ function App(){
   );
 
   // INSCRIPTION
+  // ÉCRAN LOGIN (modal sur register)
+  if(screen==="register"&&showLogin) return(
+    <div style={{background:T.bg,minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",padding:"20px"}}>
+      <div style={{width:"100%",maxWidth:420}}>
+        <div style={{textAlign:"center",marginBottom:28}}>
+          <div style={{width:50,height:50,background:T.grad,borderRadius:14,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,fontWeight:900,color:"#fff",fontFamily:"'Syne',sans-serif",margin:"0 auto 14px"}}>D</div>
+          <h2 style={{fontSize:24,fontWeight:800,fontFamily:"'Syne',sans-serif",letterSpacing:"-0.5px",marginBottom:8}}>Connexion</h2>
+          <p style={{color:T.muted,fontSize:14}}>Bon retour sur <strong style={{color:T.accent}}>Doc Express</strong></p>
+        </div>
+        <div style={S.card}>
+          <div style={{display:"flex",flexDirection:"column",gap:14}}>
+            <div>
+              <label style={S.label}>Email</label>
+              <input style={S.input} type="email" value={loginEmail} onChange={e=>setLoginEmail(e.target.value)} placeholder="votre@email.com"
+                onFocus={e=>e.target.style.borderColor=T.accent} onBlur={e=>e.target.style.borderColor=T.border}/>
+            </div>
+            <div>
+              <label style={S.label}>Mot de passe</label>
+              <input style={S.input} type="password" value={loginPwd} onChange={e=>setLoginPwd(e.target.value)} placeholder="••••••••"
+                onFocus={e=>e.target.style.borderColor=T.accent} onBlur={e=>e.target.style.borderColor=T.border}/>
+            </div>
+            <button
+              style={{...S.btn(T.accent),justifyContent:"center",padding:"13px",marginTop:4,opacity:authLoading?0.6:1}}
+              onClick={login} disabled={authLoading}>
+              {authLoading?"⏳ Connexion...":"🔑 Se connecter"}
+            </button>
+            {authError&&<div style={{padding:"9px 14px",background:"#FF444415",border:"1px solid #FF444430",borderRadius:9,fontSize:13,color:"#FF7070",textAlign:"center"}}>{authError}</div>}
+          </div>
+          <div style={{textAlign:"center",marginTop:14,fontSize:13,color:T.muted}}>
+            Pas encore de compte ?{" "}
+            <span style={{color:T.accent,cursor:"pointer",fontWeight:600}} onClick={()=>{setAuthError("");setShowLogin(false);}}>Créer un compte</span>
+          </div>
+        </div>
+        <button style={S.back} onClick={()=>{setShowLogin(false);go("landing");}}>← Retour à l'accueil</button>
+      </div>
+    </div>
+  );
+
   if(screen==="register") return(
     <div style={{background:T.bg,minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",padding:"20px"}}>
       <div style={{width:"100%",maxWidth:420}}>
@@ -611,9 +803,18 @@ function App(){
             <div><label style={S.label}>Votre nom</label><input style={S.input} value={regName} onChange={e=>setRegName(e.target.value)} placeholder="ex : Chrystel Maya" onFocus={e=>e.target.style.borderColor=T.accent} onBlur={e=>e.target.style.borderColor=T.border}/></div>
             <div><label style={S.label}>Email</label><input style={S.input} type="email" value={regEmail} onChange={e=>setRegEmail(e.target.value)} placeholder="votre@email.com" onFocus={e=>e.target.style.borderColor=T.accent} onBlur={e=>e.target.style.borderColor=T.border}/></div>
             <div><label style={S.label}>Mot de passe</label><input style={S.input} type="password" value={regPwd} onChange={e=>setRegPwd(e.target.value)} placeholder="••••••••" onFocus={e=>e.target.style.borderColor=T.accent} onBlur={e=>e.target.style.borderColor=T.border}/></div>
-            <button style={{...S.btn(T.accent),justifyContent:"center",padding:"13px",marginTop:4}} onClick={register}>🎉 Créer mon compte — 3 docs gratuits</button>
+            <button
+              style={{...S.btn(T.accent),justifyContent:"center",padding:"13px",marginTop:4,opacity:authLoading?0.6:1,cursor:authLoading?"not-allowed":"pointer"}}
+              onClick={register} disabled={authLoading}>
+              {authLoading?"⏳ Création...":"🎉 Créer mon compte — 3 docs gratuits"}
+            </button>
+            {authError&&<div style={{marginTop:10,padding:"9px 14px",background:"#FF444415",border:"1px solid #FF444430",borderRadius:9,fontSize:13,color:"#FF7070",textAlign:"center"}}>{authError}</div>}
           </div>
           <div style={{textAlign:"center",marginTop:14,fontSize:12,color:T.dim}}>Aucune carte bancaire requise.</div>
+          <div style={{textAlign:"center",marginTop:10,fontSize:13,color:T.muted}}>
+            Déjà un compte ?{" "}
+            <span style={{color:T.accent,cursor:"pointer",fontWeight:600}} onClick={()=>{setAuthError("");setShowLogin(true);}}>Se connecter</span>
+          </div>
         </div>
         <button style={S.back} onClick={()=>go("landing")}>← Retour</button>
       </div>
@@ -623,7 +824,7 @@ function App(){
   // HOME
   if(screen==="home") return(
     <div style={{background:T.bg,minHeight:"100vh"}}>
-      <Header user={user} credits={credits} onAI={()=>go("ai")} onReset={()=>go("home")} S={S} T={T}/>
+      <Header user={user} credits={credits} onAI={()=>go("ai")} onReset={()=>go("home")} onLogout={logout} onAccount={()=>go("account")} S={S} T={T}/>
       <div style={S.wrap}>
         {user&&<div style={{...S.card2,display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:12,marginBottom:24}}>
           <div>
@@ -661,7 +862,7 @@ function App(){
   // POLE
   if(screen==="pole"&&pole) return(
     <div style={{background:T.bg,minHeight:"100vh"}}>
-      <Header user={user} credits={credits} onAI={()=>go("ai")} onReset={()=>go("home")} S={S} T={T}/>
+      <Header user={user} credits={credits} onAI={()=>go("ai")} onReset={()=>go("home")} onLogout={logout} onAccount={()=>go("account")} S={S} T={T}/>
       <div style={S.wrap}>
         <button style={S.back} onClick={()=>go("home")}>← Retour</button>
         <div style={{display:"flex",alignItems:"center",gap:13,marginBottom:24}}>
@@ -834,7 +1035,7 @@ function App(){
   // FORM
   if(screen==="form"&&doc&&pole) return(
     <div style={{background:T.bg,minHeight:"100vh"}}>
-      <Header user={user} credits={credits} onAI={()=>go("ai")} onReset={()=>go("home")} S={S} T={T}/>
+      <Header user={user} credits={credits} onAI={()=>go("ai")} onReset={()=>go("home")} onLogout={logout} onAccount={()=>go("account")} S={S} T={T}/>
       <div style={S.wrap}>
         <button style={S.back} onClick={()=>go("pole")}>← {pole.label}</button>
         <div style={S.card}>
@@ -870,7 +1071,7 @@ function App(){
   // LOCKED
   if(screen==="locked") return(
     <div style={{background:T.bg,minHeight:"100vh"}}>
-      <Header user={user} credits={credits} onAI={()=>go("ai")} onReset={()=>go("home")} S={S} T={T}/>
+      <Header user={user} credits={credits} onAI={()=>go("ai")} onReset={()=>go("home")} onLogout={logout} onAccount={()=>go("account")} S={S} T={T}/>
       <div style={S.wrap}>
         <div style={{...S.card,textAlign:"center",padding:38}}>
           <div style={{fontSize:50,marginBottom:14}}>🔒</div>
@@ -925,7 +1126,7 @@ function App(){
   // PREVIEW
   if(screen==="preview") return(
     <div style={{background:T.bg,minHeight:"100vh"}}>
-      <Header user={user} credits={credits} onAI={()=>go("ai")} onReset={()=>go("home")} S={S} T={T}/>
+      <Header user={user} credits={credits} onAI={()=>go("ai")} onReset={()=>go("home")} onLogout={logout} onAccount={()=>go("account")} S={S} T={T}/>
       <div style={S.wrap}>
         <button style={S.back} onClick={reset}>← Nouveau document</button>
         <div style={{display:"flex",alignItems:"center",gap:11,marginBottom:20,background:`${T.green}10`,border:`1px solid ${T.green}25`,borderRadius:11,padding:"11px 16px"}}>
@@ -949,10 +1150,73 @@ function App(){
     </div>
   );
 
+  // MON COMPTE
+  if(screen==="account") return(
+    <div style={{background:T.bg,minHeight:"100vh"}}>
+      <Header user={user} credits={credits} onAI={()=>go("ai")} onReset={()=>go("home")} onLogout={logout} onAccount={()=>go("account")} S={S} T={T}/>
+      <div style={S.wrap}>
+        <button style={S.back} onClick={()=>go("home")}>← Retour</button>
+        <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:28}}>
+          <div style={{width:56,height:56,background:`linear-gradient(135deg,${T.blue},${T.purple})`,borderRadius:16,display:"flex",alignItems:"center",justifyContent:"center",fontSize:26}}>👤</div>
+          <div>
+            <h2 style={{fontSize:22,fontWeight:800,fontFamily:"'Syne',sans-serif"}}>Mon compte</h2>
+            <div style={{fontSize:13,color:T.muted}}>Gérez vos informations et vos crédits</div>
+          </div>
+        </div>
+
+        {/* Infos compte */}
+        <div style={S.card}>
+          <div style={S.sec}>Informations</div>
+          <div style={{display:"flex",flexDirection:"column",gap:12}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 16px",background:T.bg2,borderRadius:10}}>
+              <div style={{fontSize:13,color:T.muted}}>Nom</div>
+              <div style={{fontSize:14,fontWeight:600}}>{user?.name}</div>
+            </div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 16px",background:T.bg2,borderRadius:10}}>
+              <div style={{fontSize:13,color:T.muted}}>Email</div>
+              <div style={{fontSize:14,fontWeight:600}}>{user?.email}</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Crédits */}
+        <div style={{...S.card,background:`${T.accent}12`,border:`1px solid ${T.accent}30`}}>
+          <div style={S.sec}>Mes crédits</div>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:16}}>
+            <div>
+              <div style={{fontSize:40,fontWeight:900,fontFamily:"'Syne',sans-serif",color:T.accent,letterSpacing:"-2px"}}>{credits}</div>
+              <div style={{fontSize:13,color:T.muted}}>crédit{credits!==1?"s":""} disponible{credits!==1?"s":""}</div>
+            </div>
+            <div style={{display:"flex",flexDirection:"column",gap:10}}>
+              <a href="https://buy.stripe.com/cNi4gy7gIaNW9XEgFPbV600" target="_blank" rel="noopener noreferrer"
+                style={{...S.btn(T.accent),textDecoration:"none",fontSize:13}}>
+                💳 Acheter 1 document — 1€
+              </a>
+              <a href="https://buy.stripe.com/fZu14mcB2cW4fhYblvbV601" target="_blank" rel="noopener noreferrer"
+                style={{...S.btn(T.purple),textDecoration:"none",fontSize:13}}>
+                🚀 S'abonner — 9€/mois illimité
+              </a>
+            </div>
+          </div>
+        </div>
+
+        {/* Déconnexion */}
+        <div style={S.card}>
+          <div style={S.sec}>Session</div>
+          <button
+            style={{background:"#FF444420",border:"1px solid #FF444440",color:"#FF6B6B",borderRadius:11,padding:"12px 22px",fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}
+            onClick={logout}>
+            🚪 Se déconnecter
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
   // IA
   if(screen==="ai") return(
     <div style={{background:T.bg,minHeight:"100vh"}}>
-      <Header user={user} credits={credits} onAI={()=>go("ai")} onReset={()=>go("home")} S={S} T={T}/>
+      <Header user={user} credits={credits} onAI={()=>go("ai")} onReset={()=>go("home")} onLogout={logout} onAccount={()=>go("account")} S={S} T={T}/>
       <div style={S.wrap}>
         <button style={S.back} onClick={()=>go("home")}>← Retour</button>
         <div style={{display:"flex",alignItems:"center",gap:13,marginBottom:26}}>
