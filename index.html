@@ -22,7 +22,7 @@ input::placeholder,textarea::placeholder{color:#3A4A65}
 <body>
 <div id="root"></div>
 <script type="text/babel">
-const {useState} = React;
+const {useState, useEffect} = React;
 
 const T = {
   bg:"#070B14",bg2:"#0D1221",card:"#111827",card2:"#162033",
@@ -137,6 +137,16 @@ function Header({user,credits,onAI,onReset,S,T}){
 
 function App(){
   const [screen,setScreen]=useState("landing");
+
+  // Détection retour Stripe (?paid=true dans l'URL)
+  useEffect(()=>{
+    const params = new URLSearchParams(window.location.search);
+    if(params.get("paid")==="true"){
+      setPaid(true);
+      // Nettoyer l'URL sans recharger la page
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  },[]);
   const [user,setUser]=useState(null);
   const [credits,setCredits]=useState(0);
   const [pole,setPole]=useState(null);
@@ -156,7 +166,7 @@ function App(){
   const [aiCopied,setAiCopied]=useState(false);
 
   const go=s=>{setFade(true);setTimeout(()=>{setScreen(s);setFade(false);},180);};
-  const register=()=>{if(!regName||!regEmail)return;setUser({name:regName,email:regEmail});setCredits(10);go("home");};
+  const register=()=>{if(!regName||!regEmail)return;setUser({name:regName,email:regEmail});setCredits(3);go("home");};
   const selPole=p=>{setPole(p);setDoc(null);setForm({});go("pole");};
   const selDoc=d=>{setDoc(d);setForm({});go("form");};
   const setField=(k,v)=>setForm(p=>({...p,[k]:v}));
@@ -224,7 +234,7 @@ function App(){
           <button style={S.btn(T.accent)} onClick={()=>go("register")}>Commencer gratuitement →</button>
         </nav>
         <div style={{textAlign:"center",padding:"70px 0 50px"}}>
-          <div style={{background:`${T.green}20`,border:`1px solid ${T.green}40`,color:T.green,padding:"5px 16px",borderRadius:20,fontSize:13,fontWeight:600,display:"inline-block",marginBottom:22}}>✨ 10 documents offerts à l'inscription</div>
+          <div style={{background:`${T.green}20`,border:`1px solid ${T.green}40`,color:T.green,padding:"5px 16px",borderRadius:20,fontSize:13,fontWeight:600,display:"inline-block",marginBottom:22}}>✨ 3 documents offerts à l'inscription</div>
           <h1 style={{fontSize:"clamp(30px,5.5vw,56px)",fontWeight:800,fontFamily:"'Syne',sans-serif",letterSpacing:"-2px",lineHeight:1.05,marginBottom:18}}>
             Vos documents professionnels,<br/>
             <span style={{background:T.grad,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>générés en 30 secondes.</span>
@@ -258,7 +268,7 @@ function App(){
         </div>
         <div style={S.sec}>Tarifs</div>
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(210px,1fr))",gap:14,marginBottom:50}}>
-          {[{l:"Gratuit",p:"0€",s:"à l'inscription",items:["10 documents offerts","Tous les modèles","Téléchargement .txt"],f:false},
+          {[{l:"Gratuit",p:"0€",s:"à l'inscription",items:["3 documents offerts","Tous les modèles","Téléchargement .txt"],f:false},
             {l:"À l'unité",p:"1€",s:"par document",items:["Sans abonnement","Accès immédiat","Toutes catégories"],f:false},
             {l:"Abonnement",p:"9€",s:"/mois · illimité",items:["Illimité","IA générative incluse","Export Word & PDF"],f:true,b:"Meilleure offre"}
           ].map(x=>(
@@ -285,14 +295,14 @@ function App(){
         <div style={{textAlign:"center",marginBottom:28}}>
           <div style={{width:50,height:50,background:T.grad,borderRadius:14,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,fontWeight:900,color:"#fff",fontFamily:"'Syne',sans-serif",margin:"0 auto 14px"}}>D</div>
           <h2 style={{fontSize:24,fontWeight:800,fontFamily:"'Syne',sans-serif",letterSpacing:"-0.5px",marginBottom:8}}>Créez votre compte</h2>
-          <p style={{color:T.muted,fontSize:14}}>et recevez <strong style={{color:T.accent}}>10 documents offerts</strong></p>
+          <p style={{color:T.muted,fontSize:14}}>et recevez <strong style={{color:T.accent}}>3 documents offerts</strong></p>
         </div>
         <div style={S.card}>
           <div style={{display:"flex",flexDirection:"column",gap:14}}>
             <div><label style={S.label}>Votre nom</label><input style={S.input} value={regName} onChange={e=>setRegName(e.target.value)} placeholder="ex : Chrystel Maya" onFocus={e=>e.target.style.borderColor=T.accent} onBlur={e=>e.target.style.borderColor=T.border}/></div>
             <div><label style={S.label}>Email</label><input style={S.input} type="email" value={regEmail} onChange={e=>setRegEmail(e.target.value)} placeholder="votre@email.com" onFocus={e=>e.target.style.borderColor=T.accent} onBlur={e=>e.target.style.borderColor=T.border}/></div>
             <div><label style={S.label}>Mot de passe</label><input style={S.input} type="password" value={regPwd} onChange={e=>setRegPwd(e.target.value)} placeholder="••••••••" onFocus={e=>e.target.style.borderColor=T.accent} onBlur={e=>e.target.style.borderColor=T.border}/></div>
-            <button style={{...S.btn(T.accent),justifyContent:"center",padding:"13px",marginTop:4}} onClick={register}>🎉 Créer mon compte — 10 docs gratuits</button>
+            <button style={{...S.btn(T.accent),justifyContent:"center",padding:"13px",marginTop:4}} onClick={register}>🎉 Créer mon compte — 3 docs gratuits</button>
           </div>
           <div style={{textAlign:"center",marginTop:14,fontSize:12,color:T.dim}}>Aucune carte bancaire requise.</div>
         </div>
@@ -556,18 +566,45 @@ function App(){
         <div style={{...S.card,textAlign:"center",padding:38}}>
           <div style={{fontSize:50,marginBottom:14}}>🔒</div>
           <h2 style={{fontSize:21,fontWeight:800,fontFamily:"'Syne',sans-serif",marginBottom:8}}>Votre document est prêt !</h2>
-          <p style={{fontSize:14,color:T.muted,marginBottom:28,lineHeight:1.6}}>Vos crédits gratuits sont épuisés.<br/>Choisissez une option pour accéder au document.</p>
-          <div style={{display:"flex",justifyContent:"center",gap:13,marginBottom:26,flexWrap:"wrap"}}>
-            {[{id:"unit",l:"Document à l'unité",p:"1€"},{id:"sub",l:"Abonnement mensuel",p:"9€/mois"}].map(x=>(
-              <div key={x.id} style={{background:plan===x.id?`${T.accent}15`:T.bg2,border:`2px solid ${plan===x.id?T.accent:T.border}`,borderRadius:13,padding:"15px 20px",cursor:"pointer",textAlign:"center",minWidth:135,transition:"all 0.15s"}} onClick={()=>setPlan(x.id)}>
-                <div style={{fontSize:24,fontWeight:800,fontFamily:"'Syne',sans-serif",color:plan===x.id?T.accent:T.text}}>{x.p}</div>
-                <div style={{fontSize:12,color:T.muted,marginTop:3}}>{x.l}</div>
-              </div>
-            ))}
+          <p style={{fontSize:14,color:T.muted,marginBottom:28,lineHeight:1.6}}>Vos crédits gratuits sont épuisés.<br/>Choisissez votre formule pour accéder au document.</p>
+
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:28,maxWidth:420,margin:"0 auto 28px"}}>
+            {/* Option 1€ */}
+            <a href="https://buy.stripe.com/cNi4gy7gIaNW9XEgFPbV600" target="_blank" rel="noopener noreferrer"
+              style={{background:`${T.accent}15`,border:`2px solid ${T.accent}`,borderRadius:14,padding:"20px 16px",textDecoration:"none",display:"block",transition:"all 0.15s"}}
+              onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-2px)";e.currentTarget.style.background=`${T.accent}25`;}}
+              onMouseLeave={e=>{e.currentTarget.style.transform="translateY(0)";e.currentTarget.style.background=`${T.accent}15`;}}>
+              <div style={{fontSize:28,fontWeight:900,fontFamily:"'Syne',sans-serif",color:T.accent,letterSpacing:"-1px"}}>1€</div>
+              <div style={{fontSize:13,fontWeight:700,color:T.text,marginTop:4}}>Document à l'unité</div>
+              <div style={{fontSize:11,color:T.muted,marginTop:3}}>Paiement unique · Sans engagement</div>
+              <div style={{marginTop:12,background:T.accent,color:"#fff",borderRadius:8,padding:"8px 0",fontSize:13,fontWeight:700}}>💳 Payer 1€</div>
+            </a>
+
+            {/* Option 9€/mois */}
+            <a href="https://buy.stripe.com/fZu14mcB2cW4fhYblvbV601" target="_blank" rel="noopener noreferrer"
+              style={{background:`${T.purple}15`,border:`2px solid ${T.purple}`,borderRadius:14,padding:"20px 16px",textDecoration:"none",display:"block",transition:"all 0.15s",position:"relative"}}
+              onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-2px)";e.currentTarget.style.background=`${T.purple}25`;}}
+              onMouseLeave={e=>{e.currentTarget.style.transform="translateY(0)";e.currentTarget.style.background=`${T.purple}15`;}}>
+              <div style={{position:"absolute",top:-11,left:"50%",transform:"translateX(-50%)",background:T.purple,color:"#fff",fontSize:10,fontWeight:700,padding:"3px 10px",borderRadius:20,whiteSpace:"nowrap"}}>⭐ Meilleure offre</div>
+              <div style={{fontSize:28,fontWeight:900,fontFamily:"'Syne',sans-serif",color:T.purple,letterSpacing:"-1px"}}>9€</div>
+              <div style={{fontSize:13,fontWeight:700,color:T.text,marginTop:4}}>Abonnement mensuel</div>
+              <div style={{fontSize:11,color:T.muted,marginTop:3}}>Documents illimités · IA incluse</div>
+              <div style={{marginTop:12,background:T.purple,color:"#fff",borderRadius:8,padding:"8px 0",fontSize:13,fontWeight:700}}>🚀 S'abonner</div>
+            </a>
           </div>
-          <button style={{...S.btn(T.accent),padding:"13px 26px",justifyContent:"center"}} onClick={pay}>💳 Payer et accéder</button>
-          <div style={{fontSize:12,color:T.dim,marginTop:12}}>Paiement sécurisé via Stripe · Accès immédiat</div>
+
+          <div style={{fontSize:12,color:T.dim,marginBottom:6}}>🔒 Paiement 100% sécurisé via Stripe</div>
+          <div style={{fontSize:11,color:T.dim}}>Après paiement, revenez sur cette page — votre document sera disponible.</div>
+
+          {/* Bouton retour après paiement */}
+          <div style={{marginTop:20,padding:"14px 20px",background:T.bg2,border:`1px solid ${T.border}`,borderRadius:12}}>
+            <div style={{fontSize:13,color:T.muted,marginBottom:10}}>Vous venez de payer ? Cliquez ici pour accéder à votre document :</div>
+            <button style={{...S.btn(T.green),justifyContent:"center",width:"100%",padding:"12px"}} onClick={pay}>
+              ✅ J'ai payé — Accéder à mon document
+            </button>
+          </div>
         </div>
+
         <div style={{position:"relative"}}>
           <div style={{...S.pre,filter:"blur(5px)",userSelect:"none",pointerEvents:"none"}}>{preview}</div>
           <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(7,11,20,0.55)",borderRadius:14}}><div style={{fontSize:44}}>🔒</div></div>
