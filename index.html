@@ -10,7 +10,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 body{background:#070B14;font-family:'DM Sans',sans-serif;color:#EEF2FF;overflow-x:hidden}
@@ -176,200 +175,96 @@ function App(){
   const pay=()=>{go("preview");};
   const copy=()=>{navigator.clipboard.writeText(preview);setCopied(true);setTimeout(()=>setCopied(false),2000);};
   
-  // ─── GÉNÉRATEUR DE DOCUMENT MISE EN PAGE PROFESSIONNELLE ───
+  // ─── GÉNÉRATEUR WORD (HTML → .doc — compatible 100%) ───
   const buildWordDoc = (content, docLabel, poleLabel) => {
-    const {
-      Document, Paragraph, TextRun, Packer,
-      AlignmentType, BorderStyle, ShadingType,
-      Table, TableRow, TableCell, WidthType,
-      HeadingLevel, PageOrientation, convertInchesToTwip,
-      UnderlineType
-    } = window.docx;
-
-    const BRAND_COLOR = "1E3A5F";   // bleu marine
-    const ACCENT_COLOR = "F97316";  // orange Doc Express
-    const LIGHT_BG = "F0F4F8";      // gris très clair
-
     const lines = content.split("\n");
-    const children = [];
+    let bodyHtml = "";
 
-    // ── EN-TÊTE avec logo placeholder + titre app ──
-    children.push(
-      new Table({
-        width:{size:100,type:WidthType.PERCENTAGE},
-        borders:{top:{style:BorderStyle.NONE},bottom:{style:BorderStyle.THICK,color:ACCENT_COLOR,size:8},left:{style:BorderStyle.NONE},right:{style:BorderStyle.NONE},insideH:{style:BorderStyle.NONE},insideV:{style:BorderStyle.NONE}},
-        rows:[new TableRow({children:[
-          new TableCell({
-            width:{size:20,type:WidthType.PERCENTAGE},
-            shading:{type:ShadingType.SOLID,color:BRAND_COLOR},
-            margins:{top:120,bottom:120,left:200,right:200},
-            children:[
-              new Paragraph({alignment:AlignmentType.CENTER,children:[
-                new TextRun({text:"DOC",bold:true,color:"FFFFFF",size:28,font:"Arial"}),
-              ]}),
-              new Paragraph({alignment:AlignmentType.CENTER,children:[
-                new TextRun({text:"EXPRESS",bold:true,color:ACCENT_COLOR,size:18,font:"Arial"}),
-              ]}),
-              new Paragraph({alignment:AlignmentType.CENTER,children:[
-                new TextRun({text:"🖼 Votre logo ici",color:"AAAAAA",size:14,font:"Arial",italics:true}),
-              ]}),
-            ]
-          }),
-          new TableCell({
-            width:{size:80,type:WidthType.PERCENTAGE},
-            margins:{top:120,bottom:120,left:300,right:200},
-            children:[
-              new Paragraph({children:[new TextRun({text:docLabel,bold:true,color:BRAND_COLOR,size:28,font:"Arial"})]}),
-              new Paragraph({children:[new TextRun({text:poleLabel,color:"666666",size:18,font:"Arial",italics:true})]}),
-              new Paragraph({children:[new TextRun({text:"Généré via Doc Express — Maya Pro Drive",color:"999999",size:14,font:"Arial"})]}),
-            ]
-          })
-        ]})]
-      })
-    );
-
-    // Espace après en-tête
-    children.push(new Paragraph({spacing:{after:200}}));
-
-    // ── TRAITEMENT LIGNE PAR LIGNE ──
     lines.forEach((line, i) => {
-      const trimmed = line.trim();
+      const t = line.trim();
+      if (!t) { bodyHtml += '<p style="margin:2px 0">&nbsp;</p>'; return; }
 
-      // Ligne vide → espace
-      if (!trimmed) {
-        children.push(new Paragraph({spacing:{after:80}}));
+      // Séparateur
+      if (/^─{3,}/.test(t)) {
+        bodyHtml += '<hr style="border:none;border-top:1px solid #ccc;margin:8px 0"/>';
         return;
       }
-
-      // Séparateur ─── → filet de séparation
-      if (/^─{3,}/.test(trimmed)) {
-        children.push(new Paragraph({
-          border:{bottom:{style:BorderStyle.SINGLE,color:"CCCCCC",size:4}},
-          spacing:{after:120}
-        }));
+      // Titre principal (majuscules, début de doc)
+      if (i < 8 && t === t.toUpperCase() && t.length > 8 && !/^[•–\-\d]/.test(t)) {
+        bodyHtml += `<h1 style="background:#1E3A5F;color:#fff;text-align:center;padding:10px;font-family:Arial;font-size:14pt;margin:8px 0">${t}</h1>`;
         return;
       }
-
-      // TITRE PRINCIPAL (tout en majuscules, ≥ 10 chars, ligne 0-3)
-      if (i < 8 && trimmed === trimmed.toUpperCase() && trimmed.length > 8 && !/^(•|–|-)/.test(trimmed) && !/^\d/.test(trimmed)) {
-        children.push(new Paragraph({
-          alignment:AlignmentType.CENTER,
-          shading:{type:ShadingType.SOLID,color:BRAND_COLOR},
-          spacing:{before:200,after:200},
-          children:[new TextRun({text:trimmed,bold:true,color:"FFFFFF",size:28,font:"Arial"})]
-        }));
+      // Sous-titre section (ARTICLE X, PRÉAMBULE…)
+      if (t === t.toUpperCase() && t.length > 4 && /^(ARTICLE|ART\.|PRÉAMBULE|ENTRE|FAIT|ANNEX|BILAN|ELECT|DÉCIS|DIVERS|OBJET|DURÉE)/.test(t)) {
+        bodyHtml += `<p style="background:#F0F4F8;border-left:4px solid #F97316;padding:6px 10px;font-family:Arial;font-size:10pt;font-weight:bold;color:#1E3A5F;margin:10px 0 4px 0">${t}</p>`;
         return;
       }
-
-      // Sous-titre en majuscules (ARTICLE X, PRÉAMBULE, etc.)
-      if (trimmed === trimmed.toUpperCase() && trimmed.length > 4 && /^(ARTICLE|ART\.|PRÉAMBULE|PRÉAMB|ENTRE|FAIT|ANNEX|BILAN|ELECT|DÉCIS|DIVERS|ENTRE|OBJET|DURÉE|PARTIE|SIGNAT)/.test(trimmed)) {
-        children.push(new Paragraph({
-          shading:{type:ShadingType.SOLID,color:LIGHT_BG},
-          spacing:{before:200,after:100},
-          border:{left:{style:BorderStyle.THICK,color:ACCENT_COLOR,size:12}},
-          indent:{left:160},
-          children:[new TextRun({text:trimmed,bold:true,color:BRAND_COLOR,size:22,font:"Arial"})]
-        }));
+      // Article numéroté
+      if (/^(Article\s+\d+|Art\.\d+)\s*[–-]/.test(t)) {
+        const parts = t.match(/^(Article\s+\d+|Art\.\d+)\s*[–-]\s*(.*)/);
+        bodyHtml += `<p style="border-left:4px solid #F97316;padding:5px 10px;font-family:Arial;font-size:10pt;margin:8px 0 4px 0"><span style="font-weight:bold;color:#1E3A5F">${parts?parts[1]+" – ":""}</span><span style="font-weight:bold;color:#333">${parts?parts[2]:t}</span></p>`;
         return;
       }
-
-      // Article numéroté style "Article 1 –" ou "Art.1 –"
-      if (/^(Article\s+\d+|Art\.\d+)\s*[–-]/.test(trimmed)) {
-        const parts = trimmed.match(/^(Article\s+\d+|Art\.\d+)\s*[–-]\s*(.*)/);
-        children.push(new Paragraph({
-          spacing:{before:200,after:80},
-          border:{left:{style:BorderStyle.THICK,color:ACCENT_COLOR,size:8}},
-          indent:{left:160},
-          children:[
-            new TextRun({text:(parts?parts[1]:"")+" – ",bold:true,color:BRAND_COLOR,size:22,font:"Arial"}),
-            new TextRun({text:parts?parts[2]:trimmed,bold:true,color:"333333",size:22,font:"Arial"}),
-          ]
-        }));
+      // Champ Label : Valeur
+      if (/^[A-ZÀ-Úa-zà-ú][a-zA-ZÀ-ú\s\/()]{1,30}\s*:/.test(t) && !t.startsWith("•") && t.length < 80) {
+        const ci = t.indexOf(":");
+        const lbl = t.substring(0, ci);
+        const val = t.substring(ci+1).trim() || "_______________________";
+        bodyHtml += `<p style="font-family:Arial;font-size:10pt;margin:4px 0"><span style="font-weight:bold;color:#1E3A5F">${lbl} : </span><span style="color:#222">${val}</span></p>`;
         return;
       }
-
-      // Ligne de champ "Nom : valeur" → mise en évidence
-      if (/^[A-ZÀ-Ú][a-zA-ZÀ-ú\s\/()àéèêëîïôùûü]{1,30}\s*:/.test(trimmed) && !trimmed.startsWith("•") && trimmed.length < 80) {
-        const colonIdx = trimmed.indexOf(":");
-        const label = trimmed.substring(0, colonIdx);
-        const value = trimmed.substring(colonIdx+1).trim();
-        children.push(new Paragraph({
-          spacing:{after:60},
-          children:[
-            new TextRun({text:label+" : ",bold:true,color:BRAND_COLOR,size:20,font:"Arial"}),
-            new TextRun({text:value||"_______________________",color:"222222",size:20,font:"Arial"}),
-          ]
-        }));
+      // Puce
+      if (/^[•\-–*✓✗☐]\s/.test(t)) {
+        bodyHtml += `<p style="font-family:Arial;font-size:10pt;margin:3px 0 3px 20px;color:#333">&#9658;&nbsp;${t.substring(2)}</p>`;
         return;
       }
-
-      // Puce • ou – ou *
-      if (/^[•\-–*]\s/.test(trimmed)) {
-        children.push(new Paragraph({
-          indent:{left:400,hanging:200},
-          spacing:{after:60},
-          children:[
-            new TextRun({text:"▸  "+trimmed.substring(2),color:"333333",size:20,font:"Arial"}),
-          ]
-        }));
+      // Signature / Fait à
+      if (/^(Signature|Fait à|Pour |La\/Le|Le\/La)/.test(t)) {
+        bodyHtml += `<p style="font-family:Arial;font-size:10pt;font-style:italic;font-weight:bold;color:#1E3A5F;margin:6px 0">${t}</p>`;
         return;
       }
-
-      // Ligne de signature
-      if (/^(Signature|Fait à|Pour |La\/Le|Le\/La|Nom\s*:)/.test(trimmed)) {
-        children.push(new Paragraph({
-          spacing:{before:120,after:80},
-          children:[new TextRun({text:trimmed,bold:true,color:BRAND_COLOR,size:20,font:"Arial",italics:true})]
-        }));
-        return;
-      }
-
-      // ✓ ✗ ☐ check boxes
-      if (/^[✓✗☐☑]/.test(trimmed)) {
-        children.push(new Paragraph({
-          indent:{left:300},
-          spacing:{after:60},
-          children:[new TextRun({text:trimmed,color:"333333",size:20,font:"Arial"})]
-        }));
-        return;
-      }
-
       // Texte normal
-      children.push(new Paragraph({
-        spacing:{after:80},
-        children:[new TextRun({text:trimmed,color:"222222",size:20,font:"Arial"})]
-      }));
+      bodyHtml += `<p style="font-family:Arial;font-size:10pt;color:#222;margin:3px 0;line-height:1.5">${t}</p>`;
     });
 
-    // ── PIED DE PAGE ──
-    children.push(new Paragraph({spacing:{before:400}}));
-    children.push(new Paragraph({
-      alignment:AlignmentType.CENTER,
-      border:{top:{style:BorderStyle.SINGLE,color:"CCCCCC",size:4}},
-      spacing:{before:200},
-      children:[
-        new TextRun({text:"Document généré par ",color:"999999",size:16,font:"Arial"}),
-        new TextRun({text:"Doc Express",bold:true,color:ACCENT_COLOR,size:16,font:"Arial"}),
-        new TextRun({text:" — Maya Pro Drive — www.mayaprodrive.com",color:"999999",size:16,font:"Arial"}),
-      ]
-    }));
+    const html = `
+      <html xmlns:o="urn:schemas-microsoft-com:office:office"
+            xmlns:w="urn:schemas-microsoft-com:office:word"
+            xmlns="http://www.w3.org/TR/REC-html40">
+      <head><meta charset="utf-8">
+      <style>
+        @page { margin: 2cm; }
+        body { font-family: Arial; font-size: 10pt; }
+      </style>
+      </head>
+      <body>
+        <!-- EN-TÊTE -->
+        <table width="100%" cellpadding="0" cellspacing="0" style="border-bottom:3px solid #F97316;margin-bottom:16px">
+          <tr>
+            <td width="120" style="background:#1E3A5F;padding:12px;text-align:center;vertical-align:middle">
+              <p style="color:#fff;font-weight:bold;font-size:14pt;margin:0;font-family:Arial">DOC</p>
+              <p style="color:#F97316;font-weight:bold;font-size:9pt;margin:0;font-family:Arial">EXPRESS</p>
+              <p style="color:#aaa;font-size:7pt;font-style:italic;margin:4px 0 0 0;font-family:Arial">🖼 Votre logo ici</p>
+            </td>
+            <td style="padding:10px 16px;vertical-align:middle">
+              <p style="font-size:14pt;font-weight:bold;color:#1E3A5F;margin:0;font-family:Arial">${docLabel}</p>
+              <p style="font-size:9pt;color:#666;font-style:italic;margin:3px 0;font-family:Arial">${poleLabel}</p>
+              <p style="font-size:7pt;color:#aaa;margin:0;font-family:Arial">Généré via Doc Express — Maya Pro Drive</p>
+            </td>
+          </tr>
+        </table>
 
-    return new Document({
-      styles:{
-        default:{document:{run:{font:"Arial",size:20,color:"222222"}}},
-      },
-      sections:[{
-        properties:{
-          page:{
-            margin:{top:800,bottom:800,left:900,right:900},
-          }
-        },
-        children
-      }]
-    });
+        ${bodyHtml}
+
+        <!-- PIED DE PAGE -->
+        <div style="border-top:1px solid #ccc;margin-top:30px;padding-top:8px;text-align:center;font-family:Arial;font-size:7pt;color:#999">
+          Document généré par <strong style="color:#F97316">Doc Express</strong> — Maya Pro Drive — www.mayaprodrive.com
+        </div>
+      </body></html>`;
+    return html;
   };
 
-  const buildPDF = (content, docLabel, poleLabel) => {
+    const buildPDF = (content, docLabel, poleLabel) => {
     const {jsPDF} = window.jspdf;
     const pdf = new jsPDF({orientation:"portrait",unit:"mm",format:"a4"});
     const W = 210, H = 297;
@@ -568,12 +463,11 @@ function App(){
       const pdf = buildPDF(preview, label, pLabel);
       pdf.save(`${label}.pdf`);
     } else {
-      const wordDoc = buildWordDoc(preview, label, pLabel);
-      window.docx.Packer.toBlob(wordDoc).then(blob=>{
-        const u=URL.createObjectURL(blob);
-        const a=document.createElement("a");
-        a.href=u;a.download=`${label}.docx`;a.click();
-      });
+      const htmlContent = buildWordDoc(preview, label, pLabel);
+      const blob = new Blob([htmlContent], {type:"application/msword;charset=utf-8"});
+      const u = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href=u; a.download=`${label}.doc`; a.click();
     }
   };
   const reset=()=>{setPole(null);setDoc(null);setForm({});setPreview("");go("home");};
@@ -608,12 +502,11 @@ function App(){
       const pdf = buildPDF(aiResult, label, pLabel);
       pdf.save("document-ia.pdf");
     } else {
-      const wordDoc = buildWordDoc(aiResult, label, pLabel);
-      window.docx.Packer.toBlob(wordDoc).then(blob=>{
-        const u=URL.createObjectURL(blob);
-        const a=document.createElement("a");
-        a.href=u;a.download="document-ia.docx";a.click();
-      });
+      const htmlContent = buildWordDoc(aiResult, label, pLabel);
+      const blob = new Blob([htmlContent], {type:"application/msword;charset=utf-8"});
+      const u = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href=u; a.download="document-ia.doc"; a.click();
     }
   };
   const copyAI=()=>{navigator.clipboard.writeText(aiResult);setAiCopied(true);setTimeout(()=>setAiCopied(false),2000);};
@@ -1046,7 +939,7 @@ function App(){
         <div style={{fontSize:13,color:T.muted,marginBottom:14}}>{pole?.label}</div>
         <div style={S.pre}>{preview}</div>
         <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:16}}>
-          <button style={S.btn(T.accent)} onClick={()=>download("docx")}>📄 Word (.docx)</button>
+          <button style={S.btn(T.accent)} onClick={()=>download("docx")}>📄 Word (.doc)</button>
           <button style={S.btn(T.blue)} onClick={()=>download("pdf")}>📕 PDF</button>
           <button style={S.btnSec} onClick={copy}>{copied?"✅ Copié !":"📋 Copier le texte"}</button>
           <button style={S.btnSec} onClick={reset}>Nouveau document</button>
@@ -1108,7 +1001,7 @@ function App(){
             </div>
             <div style={S.pre}>{aiResult}</div>
             <div style={{display:"flex",gap:11,flexWrap:"wrap",marginBottom:14}}>
-              <button style={S.btn(T.accent)} onClick={()=>downloadAI("docx")}>📄 Word (.docx)</button>
+              <button style={S.btn(T.accent)} onClick={()=>downloadAI("docx")}>📄 Word (.doc)</button>
               <button style={S.btn(T.blue)} onClick={()=>downloadAI("pdf")}>📕 PDF</button>
               <button style={S.btn(T.blue)} onClick={copyAI}>{aiCopied?"✅ Copié !":"📋 Copier"}</button>
               <button style={S.btnSec} onClick={()=>{setAiResult("");setAiPrompt("");}}>Nouveau</button>
